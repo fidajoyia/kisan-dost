@@ -1,0 +1,7 @@
+{
+  "crons": [
+    { "path": "/api/research/refresh", "schedule": "17 1 * * *" },
+    { "path": "/api/flood/refresh", "schedule": "43 0 * * *" },
+    { "path": "/api/seeds/refresh", "schedule": "29 2 * * 1" }
+  ]
+}

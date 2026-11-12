@@ -1,0 +1,471 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { allDistricts, PROVINCES } from "@/lib/districts";
+import { tempSummary } from "@/lib/seeds";
+import { ResearchFeed, ImportGuide } from "./advisor";
+import { SeedFinder } from "./seeds";
+import { FloodOutlook } from "./flood";
+
+const LS = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+const WMO = (c) =>
+  c == null ? "" : c === 0 ? "صاف آسمان" : c <= 3 ? "جزوی بادل" : c <= 48 ? "دھند" : c <= 67 ? "بارش / بوندا باندی"
+  : c <= 77 ? "برفباری" : c <= 82 ? "بارش کے جھالے" : "آندھی / گرج چمک";
+const RAIN_STATUS = { none: "بارش نہیں", recent: "حال ہی میں بارش ہوئی", forecast: "بارش متوقع ہے", continuous: "مسلسل بارش کا موسم" };
+const IRR = {
+  irrigate_now: ["now", "ابھی پانی دیں"],
+  irrigate_soon: ["soon", "2 سے 3 دن میں پانی دیں"],
+  wait_rain: ["no", "بارش متوقع ہے، ابھی پانی نہ دیں"],
+  not_needed: ["no", "ابھی پانی کی ضرورت نہیں"],
+  unknown: ["soon", "پانی کی ضرورت کا اندازہ نہیں ہو سکا"],
+};
+const LVL = { high: "زیادہ خطرہ", medium: "درمیانہ خطرہ", low: "کم خطرہ" };
+const arr = (a) => (Array.isArray(a) ? a.filter(Boolean) : []);
+const n0 = (v) => (v === 0 || v ? Math.round(Number(v)) : "–");
+
+async function compress(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const s = Math.min(1, 1280 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return { mediaType: "image/jpeg", data: c.toDataURL("image/jpeg", 0.85).split(",")[1], preview: c.toDataURL("image/jpeg", 0.5) };
+  } finally { URL.revokeObjectURL(url); }
+}
+
+export default function Home() {
+  const [lang, setLang] = useState("ur");
+  const [coords, setCoords] = useState(null);
+  const [locState, setLocState] = useState("locating"); // locating | ok | denied | error
+  const [locSource, setLocSource] = useState(null); // gps | saved | district
+  const [picking, setPicking] = useState(false);
+  const [loc, setLoc] = useState(null);
+  const [wx, setWx] = useState(null);
+  const [wxState, setWxState] = useState("idle");
+  const [outlook, setOutlook] = useState(null);
+  const [outState, setOutState] = useState("idle");
+  const [images, setImages] = useState([]);
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [tab, setTab] = useState("alerts"); // alerts | seeds | research | import
+  const [soil, setSoil] = useState(null);   // automatic land-type guess
+  const [zone, setZoneState] = useState(null);
+  const [research, setResearch] = useState(null);
+  const [resState, setResState] = useState("idle");
+  const [resTry, setResTry] = useState(0);
+  const [newIds, setNewIds] = useState(() => new Set());
+  const [flood, setFlood] = useState(null);
+  const [floodState, setFloodState] = useState("loading");
+  const [floodTry, setFloodTry] = useState(0);
+  const resultRef = useRef(null);
+
+  // 1. Automatic GPS on open (falls back to the last location the farmer chose).
+  function locate() {
+    const saved = LS.get("kd-coords");
+    setLocState("locating");
+    const fallback = (state) => { if (saved) { setCoords(saved); setLocSource("saved"); setLocState("ok"); } else setLocState(state); };
+    if (!navigator.geolocation) return fallback("error");
+    navigator.geolocation.getCurrentPosition(
+      (p) => { const c = { lat: p.coords.latitude, lon: p.coords.longitude }; LS.set("kd-coords", c); setCoords(c); setLocSource("gps"); setLocState("ok"); setPicking(false); },
+      () => fallback("denied"),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+  useEffect(() => { setLang(LS.get("kd-lang") || "ur"); locate(); }, []);
+
+  // 2. Place name + live weather as soon as coordinates exist.
+  useEffect(() => {
+    if (!coords) return;
+    const q = `lat=${coords.lat}&lon=${coords.lon}`;
+    setWxState("loading");
+    fetch(`/api/location?${q}`).then((r) => r.json()).then(setLoc).catch(() => setLoc({ ...coords }));
+    fetch(`/api/weather?${q}`).then((r) => r.json())
+      .then((w) => { if (w.error) throw 0; setWx(w); setWxState("ok"); })
+      .catch(() => setWxState("error"));
+  }, [coords]);
+
+  // 3. Regional disease alerts + days 17–30 outlook (cached per place, day and language).
+  useEffect(() => {
+    if (!loc || !wx) return;
+    const key = `kd-outlook:${loc.district || `${coords.lat.toFixed(1)},${coords.lon.toFixed(1)}`}:${wx.today}:${lang}`;
+    const cached = LS.get(key);
+    if (cached) { setOutlook(cached); setOutState("ok"); return; }
+    setOutState("loading");
+    fetch("/api/outlook", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ location: loc, weather: wx, lang }) })
+      .then((r) => r.json())
+      .then((o) => { if (o.error) throw 0; LS.set(key, o); setOutlook(o); setOutState("ok"); })
+      .catch(() => setOutState("error"));
+  }, [loc, wx, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 4. Land type (normal / sem / rait): SoilGrids + district lists; the farmer can override.
+  useEffect(() => {
+    setZoneState(LS.get("kd-zone"));
+    const t = LS.get("kd-tab"); if (t && t !== "alerts") setTab(t);
+  }, []);
+  useEffect(() => {
+    if (!coords) return;
+    const q = new URLSearchParams({ lat: coords.lat, lon: coords.lon, district: loc?.district || "" });
+    fetch(`/api/soil?${q}`).then((r) => r.json()).then((s) => { if (!s.error) setSoil(s); }).catch(() => {});
+  }, [coords, loc?.district]);
+  const zoneNow = zone || soil?.zone || "normal";
+  const setZone = (z) => { setZoneState(z); LS.set("kd-zone", z); };
+
+  // 5. Newest research from the 10 centres (server refreshes it automatically; cached here for 3 h).
+  useEffect(() => {
+    const key = `kd-research:${lang}`;
+    const cached = LS.get(key);
+    const markNew = (d) => {
+      const seen = LS.get("kd-research-seen");
+      const ids = (d.items || []).map((x) => x.id);
+      setNewIds(new Set(seen ? ids.filter((id) => !seen.includes(id)) : []));
+      if (!seen) LS.set("kd-research-seen", ids);
+    };
+    if (cached && Date.now() - cached.t < 3 * 3600e3 && !resTry) { setResearch(cached.d); setResState("ok"); markNew(cached.d); return; }
+    setResState("loading");
+    fetch(`/api/research?lang=${lang}`).then((r) => r.json())
+      .then((d) => { if (d.error && !d.items?.length) throw 0; LS.set(key, { t: Date.now(), d }); setResearch(d); setResState("ok"); markNew(d); })
+      .catch(() => setResState("error"));
+  }, [lang, resTry]);
+
+  // 6. Seasonal flood outlook (Feature 3): server combines dams, rivers, 7-month forecast and ENSO.
+  useEffect(() => {
+    if (!coords) return;
+    const key = `kd-flood:${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}:${lang}`;
+    const c = LS.get(key);
+    if (c && Date.now() - c.t < 3 * 3600e3 && !floodTry) { setFlood(c.d); setFloodState("ok"); return; }
+    setFloodState("loading");
+    const q = new URLSearchParams({ lat: coords.lat, lon: coords.lon, lang });
+    fetch(`/api/flood?${q}`).then((r) => r.json())
+      .then((d) => { setFlood(d); setFloodState(d.error ? "error" : "ok"); if (!d.error) LS.set(key, { t: Date.now(), d }); })
+      .catch(() => { setFlood(null); setFloodState("error"); });
+  }, [coords, lang, floodTry]);
+
+  function openTab(t) {
+    if (tab === "research" && t !== "research") setNewIds(new Set()); // seen once you leave the tab
+    setTab(t); LS.set("kd-tab", t);
+    if (t === "research" && research) {
+      const seen = LS.get("kd-research-seen") || [];
+      LS.set("kd-research-seen", [...new Set([...(research.items || []).map((x) => x.id), ...seen])].slice(0, 400));
+    }
+  }
+
+  // 6. Photo picked → analyse immediately.
+  async function onPick(e) {
+    const files = [...(e.target.files || [])].slice(0, 3);
+    e.target.value = "";
+    if (!files.length) return;
+    setErr(""); setResult(null); setBusy(true);
+    try {
+      const imgs = await Promise.all(files.map(compress));
+      setImages(imgs);
+      const r = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ images: imgs.map(({ mediaType, data }) => ({ mediaType, data })), location: loc || coords, weather: wx, lang }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || "failed");
+      setResult(j); setTab("alerts");
+      const hist = LS.get("kd-history") || [];
+      LS.set("kd-history", [{ t: Date.now(), name: j.plant?.name_local || "", place: loc?.district || "" }, ...hist].slice(0, 20));
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    } catch (e2) {
+      setErr("معائنہ نہیں ہو سکا۔ انٹرنیٹ چیک کریں اور دوبارہ تصویر لیں۔");
+    } finally { setBusy(false); }
+  }
+
+  function pickDistrict(v) {
+    const d = allDistricts().find((x) => `${x.province}|${x.district}` === v);
+    if (!d) return;
+    const c = { lat: d.lat, lon: d.lon }; LS.set("kd-coords", c); setCoords(c); setLocSource("district"); setLocState("ok"); setPicking(false);
+  }
+
+  const placeLabel = loc
+    ? [loc.place, loc.district, loc.province_ur || PROVINCES[loc.province] || loc.province].filter(Boolean).join("، ")
+    : "";
+
+  return (
+    <div className="wrap">
+      <header className="top">
+        <div>
+          <div className="brand-en">Kisan Dost · Crop &amp; Leaf Doctor</div>
+          <h1>کسان دوست</h1>
+        </div>
+        <p className="tag">تصویر لیں — باقی سب خودکار: آپ کی لوکیشن، لائیو موسم، بارش، آبپاشی، بیماری کی پیشگی وارننگ، 7 ماہ پہلے سیلاب کی پیشگوئی (ڈیم، دریا، بارش، گلیشیئر)، اور آپ کے درجہ حرارت و زمین کے مطابق بیج اور عالمی تحقیق۔</p>
+      </header>
+
+      <div className="statusbar" aria-live="polite">
+        <span className={`stat ${locState === "ok" ? "ok" : locState === "locating" ? "wait" : "bad"}`}>
+          <span className="dot" />
+          {locState === "locating" ? "لوکیشن معلوم کی جا رہی ہے…" : locState === "ok" ? `📍 ${placeLabel || "لوکیشن مل گئی"}${locSource === "saved" ? " (محفوظ شدہ)" : locSource === "district" ? " (منتخب ضلع)" : ""}` : "اس براؤزر میں GPS دستیاب نہیں"}
+          {locState !== "locating" ? <button type="button" className="linkbtn" style={{ marginInlineStart: 8 }} onClick={() => setPicking((v) => !v)}>تبدیل کریں</button> : null}
+        </span>
+        <span className={`stat ${wxState === "ok" ? "ok" : wxState === "error" ? "bad" : "wait"}`}>
+          <span className="dot" />
+          {wxState === "ok" ? `لائیو موسم: ${n0(wx.current?.temp)}°C` : wxState === "error" ? "موسم نہیں مل سکا" : "موسم لایا جا رہا ہے…"}
+        </span>
+        <label className="stat" style={{ cursor: "pointer" }}>
+          زبان
+          <select id="lang" value={lang} onChange={(e) => { setLang(e.target.value); LS.set("kd-lang", e.target.value); }} style={{ border: 0, background: "transparent", padding: 0, width: "auto" }}>
+            <option value="ur">اردو</option>
+            <option value="roman">Roman Urdu</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+      </div>
+
+      {picking || locState === "denied" || locState === "error" ? (
+        <div className="panel" style={{ marginTop: 14 }}>
+          <p style={{ margin: "0 0 8px" }}>
+            {locState === "denied" || locState === "error" ? "اس براؤزر میں GPS دستیاب نہیں۔ اپنا ضلع چن لیں، یا ایپ کو Chrome / فون میں کھول کر لوکیشن کی اجازت دیں:" : "اپنا ضلع چنیں، یا GPS سے دوبارہ لوکیشن لیں:"}
+            {" "}<button type="button" className="btn ghost" onClick={locate}>GPS سے لوکیشن</button>
+          </p>
+          <select id="district" defaultValue="" onChange={(e) => pickDistrict(e.target.value)}>
+            <option value="" disabled>ضلع منتخب کریں</option>
+            {Object.keys(PROVINCES).map((p) => (
+              <optgroup key={p} label={PROVINCES[p]}>
+                {allDistricts().filter((d) => d.province === p).map((d) => (
+                  <option key={d.district} value={`${p}|${d.district}`}>{d.district}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      <div className="grid">
+        <aside className="side">
+          <section className="panel">
+            <h2><span className="step">1</span>پتے کی تصویر لیں</h2>
+            <div className="cam">
+              <label><input id="camera" type="file" accept="image/*" capture="environment" onChange={onPick} disabled={busy} /><span className="btn">📷 کیمرہ</span></label>
+              <label><input id="gallery" type="file" accept="image/*" multiple onChange={onPick} disabled={busy} /><span className="btn ghost" style={{ width: "100%", display: "block" }}>گیلری سے</span></label>
+            </div>
+            {images.length ? (
+              <div className="thumbs">{images.map((im, i) => <div className="thumb" key={i}><img src={im.preview} alt={`پتے کی تصویر ${i + 1}`} /></div>)}</div>
+            ) : null}
+            <p className="hint">تصویر لیتے ہی معائنہ خود شروع ہو جائے گا۔ دن کی روشنی میں ایک پتا قریب سے لیں؛ گیلری سے اوپر اور نیچے دونوں طرف کی تصویریں (3 تک) ایک ساتھ دے سکتے ہیں۔</p>
+          </section>
+
+          <WeatherPanel wx={wx} wxState={wxState} outlook={outlook} />
+        </aside>
+
+        <main className="sheet" ref={resultRef}>
+          <div className="sheet-head sheet-tabs" role="tablist" aria-label="حصے">
+            {[
+              ["alerts", result ? "معائنہ رپورٹ" : "علاقے کی وارننگ"],
+              ["flood", "سیلاب وارننگ"],
+              ["seeds", "بیج مشورہ"],
+              ["research", "نئی تحقیق"],
+              ["import", "بیج کی درآمد"],
+            ].map(([k, l]) => (
+              <button key={k} id={`tab-${k}`} role="tab" type="button" aria-selected={tab === k} aria-controls="sheet-panel" onClick={() => openTab(k)}>
+                {l}{k === "research" && newIds.size && tab !== "research" ? <span className="count num">{newIds.size}</span> : null}{k === "flood" && flood?.farm?.overall && ["high", "severe"].includes(flood.farm.overall.level) && tab !== "flood" ? <span className="count">!</span> : null}
+              </button>
+            ))}
+          </div>
+          <div className="sheet-body" id="sheet-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+            {busy ? <div className="thinking"><div className="spin" /><span>تصویر کا معائنہ ہو رہا ہے… 20 سے 60 سیکنڈ</span></div>
+              : tab === "flood" ? <FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} />
+              : tab === "seeds" ? <SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => openTab("import")} />
+              : tab === "research" ? <ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} zone={zoneNow} band={tempSummary(wx)?.band} onRetry={() => setResTry((n) => n + 1)} />
+              : tab === "import" ? <ImportGuide lang={lang} />
+              : err ? <p className="status err">{err}</p>
+              : result ? <Result d={result} place={placeLabel} />
+              : <Alerts outlook={outlook} state={outState} />}
+          </div>
+        </main>
+      </div>
+
+      <footer>
+        یہ ایپ مشورہ دیتی ہے، حتمی تشخیص نہیں۔ کیمیائی دوا سے پہلے محکمہ زراعت (توسیع) یا زرعی ماہر سے تصدیق کریں اور مقدار لیبل کے مطابق رکھیں۔
+        موسم: Open-Meteo · مقام: OpenStreetMap · مٹی: SoilGrids (ISRIC) · سیلاب: ECMWF SEAS5، ERA5، فیڈرل فلڈ کمیشن، NOAA · تحقیق: دنیا کی 10 بہترین زرعی جامعات (QS 2026)، Europe PMC، خبریں۔ مٹی کی نمی ماڈل کا اندازہ ہے، آپ کی مٹی کی قسم کے مطابق فرق ہو سکتا ہے۔
+      </footer>
+    </div>
+  );
+}
+
+function WeatherPanel({ wx, wxState, outlook }) {
+  if (wxState !== "ok") {
+    return <section className="panel"><h2><span className="step">2</span>موسم</h2>
+      <p className="status">{wxState === "error" ? "لائیو موسم نہیں مل سکا۔" : "لوکیشن ملتے ہی لائیو موسم یہاں آ جائے گا۔"}</p></section>;
+  }
+  const [cls, label] = IRR[wx.irrigation?.need] || IRR.unknown;
+  return (
+    <section className="panel">
+      <h2><span className="step">2</span>لائیو موسم <span className="latin" style={{ fontSize: ".75rem", color: "var(--muted)" }}>Open-Meteo</span></h2>
+      <div className="wx-now">
+        <div><span>ابھی</span><b>{n0(wx.current?.temp)}°C</b></div>
+        <div><span>نمی</span><b>{n0(wx.current?.humidity)}%</b></div>
+      </div>
+      <p style={{ margin: "6px 0 0", fontSize: ".9rem" }}>{WMO(wx.current?.code)}</p>
+
+      <h3 className="sec-title" style={{ marginTop: 14 }}>بارش <small>Rain</small></h3>
+      <p style={{ margin: 0 }}><b>{RAIN_STATUS[wx.rain?.status]}</b></p>
+      <p style={{ margin: 0, fontSize: ".88rem", color: "var(--muted)" }}>
+        پچھلے 7 دن: <span className="num">{wx.rain?.past7_mm} mm</span> · اگلے 7 دن: <span className="num">{wx.rain?.next7_mm} mm</span> · اگلے 16 دن: <span className="num">{wx.rain?.next16_mm} mm</span>
+      </p>
+
+      <h3 className="sec-title" style={{ marginTop: 14 }}>آبپاشی <small>Irrigation</small></h3>
+      <div className={`irr ${cls}`}>
+        <div>
+          <b>{label}</b>
+          <p>مٹی کی نمی (9–27 سینٹی میٹر): <span className="num">{wx.soil?.root_9_27cm != null ? Math.round(wx.soil.root_9_27cm * 100) + "%" : "–"}</span> · پچھلے ہفتے پانی کی کمی: <span className="num">{wx.irrigation?.deficit7_mm} mm</span></p>
+          {outlook?.irrigation ? <p style={{ marginTop: 4 }}>{outlook.irrigation}</p> : null}
+        </div>
+      </div>
+
+      <h3 className="sec-title" style={{ marginTop: 14 }}>23 دن کا موسم <small>7 past + 16 forecast</small></h3>
+      <div className="days" dir="rtl">
+        {wx.days.map((d) => (
+          <div key={d.date} className={`day${d.past ? " past" : ""}${d.date === wx.today ? " today" : ""}`}>
+            <div>{d.date === wx.today ? "آج" : new Date(d.date + "T00:00").toLocaleDateString("ur-PK", { day: "numeric", month: "short" })}</div>
+            <b>{n0(d.tmax)}° / {n0(d.tmin)}°</b>
+            <div className="rain">{d.rain_mm ? `${d.rain_mm}mm` : "—"}</div>
+            <div style={{ color: "var(--muted)" }}>{n0(d.humidity)}%</div>
+          </div>
+        ))}
+      </div>
+
+      {arr(outlook?.outlook_17_30).length ? (
+        <>
+          <h3 className="sec-title" style={{ marginTop: 14 }}>دن 17 تا 30 <small>climate estimate</small></h3>
+          <OutlookTable rows={outlook.outlook_17_30} />
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function OutlookTable({ rows }) {
+  return (
+    <div className="wx-table-wrap">
+      <table className="wx-table" style={{ minWidth: 0 }}>
+        <tbody>
+          {arr(rows).map((x, i) => (
+            <tr key={i}>
+              <td><b>{x.label}</b><br /><span style={{ fontSize: ".8rem", color: "var(--muted)" }}>{x.dates}</span></td>
+              <td className="num">{n0(x.tmin)}°–{n0(x.tmax)}°</td>
+              <td style={{ fontSize: ".85rem" }}>{x.note}{x.disease_risk ? <><br /><b style={{ color: "var(--bad)" }}>{x.disease_risk}</b></> : null}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Alerts({ outlook, state }) {
+  if (state === "loading") return <div className="thinking"><div className="spin" /><span>آپ کے علاقے کی فصلوں کے لیے وارننگ تیار ہو رہی ہے…</span></div>;
+  if (state === "error") return <p className="status err">علاقے کی وارننگ نہیں مل سکی۔ تصویر لے کر معائنہ پھر بھی ہو سکتا ہے۔</p>;
+  if (!outlook) return <p className="status">لوکیشن اور موسم ملتے ہی آپ کے علاقے کی فصلوں کے لیے بیماری کی پیشگی وارننگ یہاں نظر آئے گی۔ پتے کا معائنہ کرنے کے لیے تصویر لیں۔</p>;
+  return (
+    <div className="stack">
+      <section>
+        <h3 className="sec-title">آپ کے علاقے میں خطرہ (اگلے 16 دن) <small>Regional alerts</small></h3>
+        <div className="risks">
+          {arr(outlook.alerts).map((a, i) => {
+            const L = ["high", "medium", "low"].includes(a.level) ? a.level : "medium";
+            return <div className="risk" key={i}><span className={`pill ${L}`}>{LVL[L]}</span><h4>{a.crop}: {a.threat}</h4><p>{a.reason}</p>{a.action ? <div className="when">کیا کریں: {a.action}</div> : null}</div>;
+          })}
+        </div>
+      </section>
+      {arr(outlook.farm_tips).length ? <section><h3 className="sec-title">موسمی مشورے <small>Tips</small></h3><ul className="list">{arr(outlook.farm_tips).map((t, i) => <li key={i}>{t}</li>)}</ul></section> : null}
+    </div>
+  );
+}
+
+function Result({ d, place }) {
+  const [tab, setTab] = useState("organic");
+  if (d.is_plant === false) return <p className="status err">یہ تصویر کسی پودے کی نہیں لگ رہی۔ پتے کی قریب سے واضح تصویر لیں۔ {d.image_note}</p>;
+  const p = d.plant || {}, h = d.health || {}, t = d.treatment || {};
+  const s = Math.max(0, Math.min(100, Number(h.score) || 0));
+  const col = h.status === "healthy" ? "var(--ok)" : h.status === "early" ? "var(--warn)" : "var(--bad)";
+  const r = 46, c = 2 * Math.PI * r;
+  const statusTxt = h.label || { healthy: "صحت مند", early: "ابتدائی بیماری", moderate: "درمیانی بیماری", severe: "شدید بیماری" }[h.status] || "";
+  return (
+    <div className="stack">
+      {d.advice ? <p className="note" style={{ fontSize: ".95rem", color: "var(--ink)", margin: 0 }}>{d.advice}</p> : null}
+      <div className="idrow">
+        <div>
+          <p className="plant-name">{p.name_local || p.name_en || "نامعلوم پودا"}</p>
+          <div className="sci">{p.name_en}{p.scientific ? ` · ${p.scientific}` : ""}</div>
+          <div className="chips">
+            {place ? <span className="loc-chip">📍 {place}</span> : null}
+            {p.category ? <span className="chip leaf">{p.category}</span> : null}
+            {p.growth_stage ? <span className="chip">{p.growth_stage}</span> : null}
+            {p.confidence != null ? <span className="chip">پہچان کا یقین <span className="num">{n0(p.confidence)}%</span></span> : null}
+          </div>
+        </div>
+        <div className="gauge">
+          <svg width="110" height="110" viewBox="0 0 110 110" aria-hidden="true">
+            <circle cx="55" cy="55" r={r} fill="none" stroke="var(--line)" strokeWidth="9" />
+            <circle cx="55" cy="55" r={r} fill="none" stroke={col} strokeWidth="9" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - s / 100)} transform="rotate(-90 55 55)" />
+            <text x="55" y="62" textAnchor="middle" fontFamily="IBM Plex Mono,monospace" fontSize="22" fontWeight="600" fill="var(--ink)">{s}</text>
+          </svg>
+          <div className="lbl">{statusTxt}</div>
+          <div style={{ fontSize: ".75rem", color: "var(--muted)" }}>صحت اسکور</div>
+        </div>
+      </div>
+
+      <section>
+        <h3 className="sec-title">ابھی کی تشخیص <small>Visible now</small></h3>
+        <div className="dz">
+          {h.status === "healthy" && !arr(d.diseases).length ? <div className="healthy">پتا صحت مند نظر آ رہا ہے۔</div> :
+            arr(d.diseases).map((x, i) => {
+              const cf = Math.max(0, Math.min(100, Number(x.confidence) || 0));
+              return (
+                <article key={i} className={`dis${cf < 50 ? " mild" : ""}`}>
+                  <div className="dis-top"><h3>{x.name_local} <span className="latin" style={{ fontWeight: 400, color: "var(--muted)", fontSize: ".85rem" }}>{x.name_en}</span></h3><span className="num" style={{ fontSize: ".85rem" }}>{cf}%</span></div>
+                  <div className="bar"><i style={{ width: `${cf}%` }} /></div>
+                  <div style={{ fontSize: ".88rem", color: "var(--muted)" }}>{x.pathogen}{x.stage ? ` · مرحلہ: ${x.stage}` : ""}</div>
+                  {arr(x.signs).length ? <ul>{arr(x.signs).map((sg, k) => <li key={k}>{sg}</li>)}</ul> : null}
+                </article>
+              );
+            })}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="sec-title">آنے والے خطرے کی وارننگ <small>Early warning · live weather</small></h3>
+        <div className="risks">
+          {arr(d.risks).map((x, i) => {
+            const L = ["high", "medium", "low"].includes(x.level) ? x.level : "medium";
+            return <div className="risk" key={i}><span className={`pill ${L}`}>{LVL[L]}</span><h4>{x.name_local} <span className="latin" style={{ fontWeight: 400, color: "var(--muted)", fontSize: ".8rem" }}>{x.name_en}</span></h4><p>{x.reason}</p>{x.when ? <div className="when">کب: {x.when}</div> : null}</div>;
+          })}
+        </div>
+      </section>
+
+      {d.irrigation?.advice ? (
+        <section>
+          <h3 className="sec-title">اس فصل کی آبپاشی <small>Irrigation</small></h3>
+          <p style={{ margin: 0 }}>{d.irrigation.advice}</p>
+          {d.irrigation.next_watering ? <p style={{ margin: 0 }}><b>اگلا پانی:</b> {d.irrigation.next_watering}</p> : null}
+          {d.irrigation.method_tip ? <p className="note" style={{ marginTop: 6 }}>{d.irrigation.method_tip}</p> : null}
+        </section>
+      ) : null}
+
+      {arr(d.outlook_17_30).length ? <section><h3 className="sec-title">دن 17 تا 30 <small>climate estimate</small></h3><OutlookTable rows={d.outlook_17_30} /></section> : null}
+
+      <section>
+        <h3 className="sec-title">علاج <small>Treatment</small></h3>
+        <div className="tabs" role="tablist">
+          {[["organic", "قدرتی / گھریلو"], ["chemical", "کیمیائی"], ["cultural", "کاشت کے طریقے"]].map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>
+          ))}
+        </div>
+        <ul className="list">{(arr(t[tab]).length ? arr(t[tab]) : ["کوئی تجویز نہیں"]).map((x, i) => <li key={i}>{x}</li>)}</ul>
+        {tab === "chemical" ? <p className="note">دوا کی مقدار اور وقفہ لیبل کے مطابق رکھیں، اور اسپرے سے پہلے مقامی زرعی ماہر سے تصدیق کریں۔</p> : null}
+      </section>
+
+      {arr(d.prevention).length ? <section><h3 className="sec-title">بچاؤ <small>Prevention</small></h3><ul className="list">{arr(d.prevention).map((x, i) => <li key={i}>{x}</li>)}</ul></section> : null}
+      {d.image_note ? <p className="note">تصویر کے بارے میں: {d.image_note}</p> : null}
+    </div>
+  );
+}
