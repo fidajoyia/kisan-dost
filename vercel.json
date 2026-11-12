@@ -1,4 +1,5 @@
 {
+  "regions": ["bom1"],
   "crons": [
     { "path": "/api/research/refresh", "schedule": "17 1 * * *" },
     { "path": "/api/flood/refresh", "schedule": "43 0 * * *" },
