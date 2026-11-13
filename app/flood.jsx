@@ -116,7 +116,7 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
 
       {/* 4. Comparison table */}
       <section>
-        <h3 className="sec-title">{pick(lang, "وجوہات: اس سال اور پچھلے سال کا موازنہ", "Why: this year compared with last year")} <small>Factors</small></h3>
+        <h3 className="sec-title">{pick(lang, "وجوہات: اس سال اور پچھلے سال کا موازنہ", "Why: this year compared with last year")}</h3>
         <div className="fl-table" role="table">
           <div className="fl-tr fl-th" role="row"><span>{pick(lang, "عامل", "Factor")}</span><span>{pick(lang, "اس سال", "This year")}</span><span>{pick(lang, "پچھلا سال", "Last year")}</span></div>
           {mf.rain ? <Row lang={lang} name={pick(lang, `بارش، اگلے 7 ماہ (${pick(lang, main.ur, main.en)} کا بالائی علاقہ)`, `Rain, next 7 months (${main.en} catchment)`)}
@@ -173,7 +173,7 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
 
       {/* 6. What to do */}
       <section>
-        <h3 className="sec-title">{pick(lang, "کیا کریں", "What to do")} <small>Actions</small></h3>
+        <h3 className="sec-title">{pick(lang, "کیا کریں", "What to do")}</h3>
         <ul className="list">
           {(arr(ex?.actions).length ? ex.actions : defaultActions(ov?.level, lang)).map((a, i) => <li key={i}>{a}</li>)}
         </ul>
@@ -184,7 +184,7 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
 
       {/* 7. All rivers */}
       <section>
-        <h3 className="sec-title">{pick(lang, "پاکستان کے تمام دریا", "All rivers in Pakistan")} <small>Outlook</small></h3>
+        <h3 className="sec-title">{pick(lang, "پاکستان کے تمام دریا", "All rivers in Pakistan")}</h3>
         <div className="fl-table fl-rivers" role="table">
           <div className="fl-tr fl-th" role="row"><span>{pick(lang, "دریا", "River")}</span><span>{pick(lang, "سب سے زیادہ خطرہ", "Peak risk")}</span><span>{pick(lang, "پچھلے سال کے مقابلے", "vs last year")}</span></div>
           {arr(data.basins).map((b) => (

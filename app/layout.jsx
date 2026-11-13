@@ -5,7 +5,7 @@ export const metadata = {
   description: "پتے کی تصویر سے فصل کی پہچان، بیماری کی ابتدائی تشخیص، لائیو موسم اور آبپاشی کا مشورہ",
 };
 
-export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#2f6b3a" };
+export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0e4d33" };
 
 export default function RootLayout({ children }) {
   return (
@@ -15,7 +15,7 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@500;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Gulzar&family=Noto+Nastaliq+Urdu:wght@500;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap"
         />
       </head>
       <body>{children}</body>

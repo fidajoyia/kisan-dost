@@ -64,7 +64,7 @@ export function SeedAdvisor({ wx, guess, zone, setZone, research, lang, goImport
       </section>
 
       <section>
-        <h3 className="sec-title">{pick(lang, "آپ کی زمین", "Your land")} <small>Land type</small></h3>
+        <h3 className="sec-title">{pick(lang, "آپ کی زمین", "Your land")}</h3>
         <div className="zone-switch" role="group" aria-label={pick(lang, "زمین کی قسم", "Land type")}>
           {Object.keys(ZONES).map((z) => (
             <button key={z} type="button" aria-pressed={zone === z} onClick={() => setZone(z)}>
@@ -153,7 +153,7 @@ export function ResearchFeed({ data, state, lang, newIds, zone, band, onRetry })
   return (
     <div className="stack" dir={dirOf(lang)}>
       <section>
-        <h3 className="sec-title">{pick(lang, "نئی تحقیق", "New research")} <small>auto-updated</small></h3>
+        <h3 className="sec-title">{pick(lang, "نئی تحقیق", "New research")}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
           {pick(lang, "دنیا کی 10 بہترین زرعی جامعات (QS 2026 درجہ بندی) کی تازہ تحقیق خود بخود یہاں آتی ہے (ہر چند گھنٹے بعد)، اور آسان زبان میں سمجھائی جاتی ہے۔", "Fresh research from the world top 10 agricultural universities (QS 2026 ranking) arrives here automatically (every few hours), explained in simple words.")}
           {data?.updated ? ` ${pick(lang, "آخری اپڈیٹ", "Last updated")}: ${new Date(data.updated).toLocaleString(lang === "ur" ? "ur-PK" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}
@@ -225,12 +225,12 @@ export function ImportGuide({ lang }) {
     <div className="stack" dir={dirOf(lang)}>
       {IMPORT_ROUTES.map((r, i) => (
         <section key={r.id}>
-          <h3 className="sec-title">{pick(lang, r.title_ur, r.title_en)} <small>{["Trial", "Bulk"][i]}</small></h3>
+          <h3 className="sec-title">{pick(lang, r.title_ur, r.title_en)}</h3>
           <ol className="steps">{(lang === "ur" ? r.steps_ur : r.steps_en).map((s, k) => <li key={k}>{s}</li>)}</ol>
         </section>
       ))}
       <section>
-        <h3 className="sec-title">{pick(lang, "متعلقہ ادارے", "Who to contact")} <small>Contacts</small></h3>
+        <h3 className="sec-title">{pick(lang, "متعلقہ ادارے", "Who to contact")}</h3>
         <ul className="list">
           {IMPORT_CONTACTS.map((c) => (
             <li key={c.name}><b className="latin">{c.name}</b> — {pick(lang, c.role_ur, c.role_en)}{c.web ? <> · <a href={c.web} target="_blank" rel="noopener noreferrer" className="latin">{c.web.replace(/^https?:\/\/(www\.)?/, "")}</a></> : null}</li>

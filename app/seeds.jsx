@@ -98,7 +98,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
       </section>
 
       <section>
-        <h3 className="sec-title">{pick(lang, "فصل منتخب کریں", "Choose crop")} <small>Crop</small></h3>
+        <h3 className="sec-title">{pick(lang, "فصل منتخب کریں", "Choose crop")}</h3>
         <div className="sf-crops" role="tablist">
           {shown.map((c) => (
             <button key={c.id} type="button" role="tab" aria-selected={crop === c.id} onClick={() => choose(c.id)}>
