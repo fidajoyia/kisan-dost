@@ -7,7 +7,7 @@ import { KB, CROPS_UR, CROPS_EN, KIND_UR, SAFETY_UR } from "@/lib/leaf-kb";
 // onnxruntime-web 1.20.1 files live in public/ort
 const ORT_CDN = "/ort/";
 const MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225];
-let session = null, labels = null, loading = null;
+let session = null, labels = null, guard = null, loading = null;
 
 function loadScript(src) {
   return new Promise((res, rej) => {
@@ -25,11 +25,12 @@ export function warmLeafModel() {
     ort.env.wasm.wasmPaths = ORT_CDN;
     ort.env.wasm.numThreads = 1; // no cross-origin isolation on a normal page
     const [buf, lab] = await Promise.all([
-      fetch("/models/kisan-leaf.onnx").then((r) => { if (!r.ok) throw new Error("model file missing"); return r.arrayBuffer(); }),
-      fetch("/models/kisan-leaf-labels.json").then((r) => r.json()),
+      fetch("/models/kisan-leaf-v2.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v2-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
     ]);
     session = await ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
-    labels = lab;
+    labels = Array.isArray(lab) ? lab : lab.labels; // v2: {labels, guard}
+    guard = Array.isArray(lab) ? null : lab.guard;
   })();
   loading.catch(() => { loading = null; });
   return loading;
@@ -52,13 +53,26 @@ async function toTensor(dataUrl) {
 export async function diagnoseLocally(images, weather) {
   await warmLeafModel();
   const probs = new Float32Array(labels.length);
+  let sim = 1;
   for (const im of images) {
     const t = await toTensor(`data:${im.mediaType || "image/jpeg"};base64,${im.data}`);
     const out = await session.run({ pixel_values: t });
     const p = out.probs.data; for (let i = 0; i < p.length; i++) probs[i] += p[i] / images.length;
+    if (out.sim) sim = Math.min(sim, out.sim.data[0]);
   }
-  const order = [...probs.keys()].sort((a, b) => probs[b] - probs[a]);
-  return buildResult(order.slice(0, 4).map((i) => ({ label: labels[i], p: probs[i] })), weather);
+  // Not a leaf of a crop we check (a person, a wall, a leaf of another plant): say so, never name a disease.
+  const other = labels.indexOf("other");
+  const order = [...probs.keys()].filter((i) => i !== other).sort((a, b) => probs[b] - probs[a]);
+  if ((other >= 0 && probs[other] >= 0.5) || (guard != null && sim < guard)) return notOurCrop();
+  const rest = 1 - (other >= 0 ? probs[other] : 0);
+  return buildResult(order.slice(0, 4).map((i) => ({ label: labels[i], p: probs[i] / rest })), weather);
+}
+
+function notOurCrop() {
+  return {
+    source: "kisan-dost-model", is_plant: false,
+    image_note: "یہ تصویر ان فصلوں کے پتے کی نہیں لگتی جن کی ایپ جانچ کرتی ہے: گندم، چاول، مکئی، کپاس، گنا، ٹماٹر، آلو، آم اور کینو۔ صرف ایک پتے کی قریب سے، دن کی روشنی میں صاف تصویر لیں (پیچھے زمین یا ہاتھ ہو تو ٹھیک ہے)۔ غلط اندازے سے بچنے کے لیے ہم کوئی بیماری یا اسپرے نہیں بتا رہے۔",
+  };
 }
 
 function buildResult(top, wx) {
@@ -88,7 +102,8 @@ function buildResult(top, wx) {
     weatherNote: !healthy && ["fungus", "bacteria"].includes(kb.kind) && wet
       ? `اگلے دنوں نمی ${humid ?? "–"}% اور بارش کا امکان ہے؛ ایسے موسم میں یہ بیماری تیزی سے پھیلتی ہے، اسپرے میں دیر نہ کریں۔ بارش سے فوراً پہلے اسپرے نہ کریں۔`
       : !healthy && kb.kind === "pest" && temp >= 30 ? `گرم موسم (${Math.round(temp)}°) میں رس چوسنے والے کیڑے تیزی سے بڑھتے ہیں؛ صبح یا شام کے وقت اسپرے کریں۔` : "",
-    advice: !sure ? "تصویر سے پکی پہچان نہیں ہو سکی (یقین کم ہے)۔ پتے کی دن کی روشنی میں قریب سے صاف تصویر دوبارہ لیں، اور نیچے دی گئی دوسری ممکنہ بیماریاں بھی دیکھیں۔" : "",
+    advice: (!sure ? "تصویر سے پکی پہچان نہیں ہو سکی (یقین کم ہے)۔ پتے کی دن کی روشنی میں قریب سے صاف تصویر دوبارہ لیں، اور نیچے دی گئی دوسری ممکنہ بیماریاں بھی دیکھیں۔ " : "")
+      + `ایپ نے اسے ${CROPS_UR[crop] || crop} کا پتہ پہچانا ہے۔ اگر یہ ${CROPS_UR[crop] || crop} نہیں تو یہ نتیجہ آپ کی فصل کے لیے نہیں؛ اسپرے نہ کریں۔`,
     image_note: "",
   };
 }

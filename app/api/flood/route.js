@@ -1,12 +1,13 @@
 import { getOutlook } from "@/lib/flood";
 
+const num = (v) => (v == null || String(v).trim() === "" ? NaN : Number(v));
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 // GET /api/flood?lat=..&lon=..&lang=ur → 7-month flood outlook for this farm.
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const lat = Number(searchParams.get("lat")), lon = Number(searchParams.get("lon"));
+  const lat = num(searchParams.get("lat")), lon = num(searchParams.get("lon"));
   const lang = ["ur", "roman", "en"].includes(searchParams.get("lang")) ? searchParams.get("lang") : "ur";
   if (!isFinite(lat) || !isFinite(lon) || lat < 22 || lat > 38 || lon < 60 || lon > 79)
     return Response.json({ error: "location must be inside Pakistan" }, { status: 400 });

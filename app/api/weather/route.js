@@ -1,11 +1,12 @@
+const num = (v) => (v == null || String(v).trim() === "" ? NaN : Number(v));
 export const dynamic = "force-dynamic";
 
 // Live weather from Open-Meteo (free, no key): last 7 days + current + 16-day forecast,
 // plus soil moisture and reference evapotranspiration for an automatic irrigation estimate.
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const lat = Number(searchParams.get("lat")), lon = Number(searchParams.get("lon"));
-  if (!isFinite(lat) || !isFinite(lon)) return Response.json({ error: "invalid coordinates" }, { status: 400 });
+  const lat = num(searchParams.get("lat")), lon = num(searchParams.get("lon"));
+  if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return Response.json({ error: "invalid coordinates" }, { status: 400 });
 
   const url = new URL("https://api.open-meteo.com/v1/forecast");
   url.search = new URLSearchParams({

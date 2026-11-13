@@ -1,4 +1,5 @@
 "use client";
+import { Safe } from "./boundary";
 import { useEffect, useRef, useState } from "react";
 import { allDistricts, PROVINCES } from "@/lib/districts";
 import { tempSummary } from "@/lib/seeds";
@@ -93,7 +94,7 @@ export default function Home() {
     setWxState("loading");
     fetch(`/api/location?${q}`).then((r) => r.json()).then(setLoc).catch(() => setLoc({ ...coords }));
     fetch(`/api/weather?${q}`).then((r) => r.json())
-      .then((w) => { if (w.error) throw 0; setWx(w); setWxState("ok"); })
+      .then((w) => { if (!w || w.error || !w.current || !Array.isArray(w.days)) throw 0; setWx(w); setWxState("ok"); })
       .catch(() => setWxState("error"));
   }, [coords]);
 
@@ -129,7 +130,7 @@ export default function Home() {
     const cached = LS.get(key);
     const markNew = (d) => {
       const seen = LS.get("kd-research-seen");
-      const ids = (d.items || []).map((x) => x.id);
+      const ids = arr(d?.items).map((x) => x?.id);
       setNewIds(new Set(seen ? ids.filter((id) => !seen.includes(id)) : []));
       if (!seen) LS.set("kd-research-seen", ids);
     };
@@ -158,7 +159,7 @@ export default function Home() {
     setTab(t); LS.set("kd-tab", t);
     if (t === "research" && research) {
       const seen = LS.get("kd-research-seen") || [];
-      LS.set("kd-research-seen", [...new Set([...(research.items || []).map((x) => x.id), ...seen])].slice(0, 400));
+      LS.set("kd-research-seen", [...new Set([...arr(research?.items).map((x) => x?.id), ...arr(seen)])].slice(0, 400));
     }
   }
 
@@ -256,7 +257,7 @@ export default function Home() {
 
       <div className="grid">
         <aside className="side">
-          <WeatherPanel wx={wx} wxState={wxState} outlook={outlook} />
+          <Safe resetKey={wxState}><WeatherPanel wx={wx} wxState={wxState} outlook={outlook} /></Safe>
         </aside>
 
         <main className="sheet" ref={resultRef}>
@@ -274,6 +275,7 @@ export default function Home() {
             ))}
           </div>
           <div className="sheet-body" id="sheet-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+            <Safe resetKey={`${tab}|${lang}|${result ? 1 : 0}`}>
             {busy ? <div className="thinking"><div className="spin" /><span>تصویر کا معائنہ ہو رہا ہے… چند سیکنڈ</span></div>
               : tab === "flood" ? <FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} />
               : tab === "seeds" ? <SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => openTab("import")} />
@@ -281,6 +283,7 @@ export default function Home() {
               : tab === "import" ? <ImportGuide lang={lang} />
               : result ? <Result d={result} place={placeLabel} />
               : <Alerts outlook={outlook} state={outState} />}
+            </Safe>
           </div>
         </main>
       </div>
@@ -325,7 +328,7 @@ function WeatherPanel({ wx, wxState, outlook }) {
 
       <h3 className="sec-title" style={{ marginTop: 14 }}>23 دن کا موسم</h3>
       <div className="days" dir="rtl">
-        {wx.days.map((d) => (
+        {arr(wx.days).map((d) => (
           <div key={d.date} className={`day${d.past ? " past" : ""}${d.date === wx.today ? " today" : ""}`}>
             <div>{d.date === wx.today ? "آج" : new Date(d.date + "T00:00").toLocaleDateString("ur-PK", { day: "numeric", month: "short" })}</div>
             <b>{n0(d.tmax)}° / {n0(d.tmin)}°</b>
@@ -386,7 +389,7 @@ function Alerts({ outlook, state }) {
 
 function Result({ d, place }) {
   const [tab, setTab] = useState("organic");
-  if (d.is_plant === false) return <p className="status err">یہ تصویر کسی پودے کی نہیں لگ رہی۔ پتے کی قریب سے واضح تصویر لیں۔ {d.image_note}</p>;
+  if (d.is_plant === false) return <div className="notcrop"><b>یہ تصویر پہچانی نہیں جا سکی</b><p>{d.image_note || "پتے کی قریب سے واضح تصویر لیں۔"}</p></div>;
   const p = d.plant || {}, h = d.health || {}, t = d.treatment || {};
   const s = Math.max(0, Math.min(100, Number(h.score) || 0));
   const col = h.status === "healthy" ? "var(--ok)" : h.status === "early" ? "var(--warn)" : "var(--bad)";
@@ -407,13 +410,8 @@ function Result({ d, place }) {
           </div>
         </div>
         <div className="gauge">
-          <svg width="110" height="110" viewBox="0 0 110 110" aria-hidden="true">
-            <circle cx="55" cy="55" r={r} fill="none" stroke="var(--line)" strokeWidth="9" />
-            <circle cx="55" cy="55" r={r} fill="none" stroke={col} strokeWidth="9" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - s / 100)} transform="rotate(-90 55 55)" />
-            <text x="55" y="62" textAnchor="middle" fontFamily="IBM Plex Mono,monospace" fontSize="22" fontWeight="600" fill="var(--ink)">{s}</text>
-          </svg>
+          <div className="gauge-word" style={{ borderColor: col, color: col }}>{h.status === "healthy" ? "صحت مند" : "بیماری ملی"}</div>
           <div className="lbl">{statusTxt}</div>
-          <div style={{ fontSize: ".75rem", color: "var(--muted)" }}>صحت اسکور</div>
         </div>
       </div>
 

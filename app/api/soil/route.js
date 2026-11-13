@@ -1,14 +1,15 @@
 import { classifyZone, parseSoilGrids } from "@/lib/soil-zones";
 
+const num = (v) => (v == null || String(v).trim() === "" ? NaN : Number(v));
 export const dynamic = "force-dynamic";
 
 // Land type guess for the seed advisor: SoilGrids texture + pH, combined with district lists.
 // GET /api/soil?lat=..&lon=..&district=..
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const lat = Number(searchParams.get("lat")), lon = Number(searchParams.get("lon"));
+  const lat = num(searchParams.get("lat")), lon = num(searchParams.get("lon"));
   const district = searchParams.get("district") || "";
-  if (!isFinite(lat) || !isFinite(lon)) return Response.json({ error: "invalid coordinates" }, { status: 400 });
+  if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return Response.json({ error: "invalid coordinates" }, { status: 400 });
 
   let soil = { sand: null, clay: null, ph: null }, source = "district-list";
   try {
@@ -17,7 +18,7 @@ export async function GET(req) {
     p.set("lon", lon.toFixed(4)); p.set("lat", lat.toFixed(4)); p.set("value", "mean");
     ["sand", "clay", "phh2o"].forEach((x) => p.append("property", x));
     ["0-5cm", "5-15cm", "15-30cm"].forEach((x) => p.append("depth", x));
-    const r = await fetch(url, { signal: AbortSignal.timeout(9000), next: { revalidate: 60 * 60 * 24 * 30 } });
+    const r = await fetch(url, { signal: AbortSignal.timeout(4000), next: { revalidate: 60 * 60 * 24 * 30 } });
     if (r.ok) {
       soil = parseSoilGrids(await r.json());
       if (soil.sand != null || soil.ph != null) source = "soilgrids";

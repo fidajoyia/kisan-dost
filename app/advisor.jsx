@@ -178,8 +178,14 @@ export function ResearchFeed({ data, state, lang, newIds, zone, band, onRetry })
                       {tempMatch(r) ? <span className="chip">{pick(lang, "آپ کے موسم سے متعلق", "Fits your weather")}</span> : null}
                       {arr(r.zones).filter((z) => z !== "normal").map((z) => <span key={z} className="chip">{pick(lang, ZONES[z]?.ur, ZONES[z]?.en)}</span>)}
                     </div>
-                    <h4>{r.title}</h4>
-                    {r.summary ? <p>{r.summary}</p> : null}
+                    {r.summarized === false && lang === "ur" ? (<>
+                      <h4>{r.title_ur || "زرعی تحقیق"}</h4>
+                      <p>{c ? `${c.name_ur || c.short} کی نئی تحقیق۔` : "نئی تحقیق۔"} {pick(lang, "تفصیل اصل (انگریزی) تحقیق میں ہے:", "")}</p>
+                      <p className="latin rs-en" dir="ltr">{r.title}</p>
+                    </>) : (<>
+                      <h4>{r.title}</h4>
+                      {r.summary && r.summary !== r.title && !r.summary.startsWith(r.title) ? <p>{r.summary}</p> : null}
+                    </>)}
                     {r.farmer_action ? <div className="when"><b>{pick(lang, "کسان کے لیے", "For farmers")}:</b> {r.farmer_action}</div> : null}
                     <a className="src" href={r.link} target="_blank" rel="noopener noreferrer">{pick(lang, "اصل تحقیق / خبر", "Original source")} ↗ <span className="latin muted">{r.source}</span></a>
                   </article>
@@ -187,7 +193,7 @@ export function ResearchFeed({ data, state, lang, newIds, zone, band, onRetry })
               })}
             </div>
           )}
-        {data?.mode === "raw" ? <p className="note">{pick(lang, "یہ تحقیق کے اصل عنوانات ہیں، ہر ایک کے ساتھ اصل ماخذ کا لنک موجود ہے۔", "These are the original research titles, each linked to its source.")}</p> : null}
+        {data?.mode === "raw" ? <p className="note">{pick(lang, "ہر تحقیق کے اوپر لکھا ہے کہ وہ کس فصل اور کس مسئلے کے بارے میں ہے۔ پوری تفصیل اصل تحقیق کے لنک پر ہے۔", "Each item shows which crop and subject it is about. Full details are at the original source link.")}</p> : null}
       </section>
       <Centers lang={lang} />
     </div>

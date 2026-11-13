@@ -25,10 +25,10 @@ The leaf photo check runs **Kisan Dost's own model inside the farmer's browser**
 
 | | |
 |---|---|
-| Test accuracy | **95.47%** on 4,372 held-out photos (never used in training) |
-| Crop identified correctly | 99.82% |
-| Classes | 61 diseases / pests / healthy, across 9 crops |
-| Training photos | 17,488 (+ mirrored copies) |
+| Test accuracy | **95.17%** on 4,372 held-out photos (never used in training), end to end with the shipped int8 file; 0.62% are refused and the farmer is asked to retake |
+| Crop identified correctly | 99.25% (refusals counted as wrong) |
+| Classes | 62 diseases / pests / healthy across 9 crops, plus "not one of our crops" |
+| Training photos | 24,124 (+ mirrored copies) |
 | Method | Frozen DINOv2-small image features + our MLP classifier (1024 hidden), exported to ONNX, int8 weights (26 MB) |
 | Runtime | onnxruntime-web (WebAssembly), about 0.4 s per photo |
 
@@ -38,7 +38,7 @@ The leaf photo check runs **Kisan Dost's own model inside the farmer's browser**
 | Cotton | 10 | Alternaria, Bacterial Blight, Curl Virus, Fusarium Wilt, Healthy, Herbicide Growth Damage, Leaf Hopper Jassids, Leaf Redding, Leaf Variegation, Verticillium Wilt |
 | Maize | 4 | Blight, Common Rust, Gray Leaf Spot, Healthy |
 | Mango | 8 | Anthracnose, Bacterial Canker, Cutting Weevil, Die Back, Gall Midge, Healthy, Powdery Mildew, Sooty Mould |
-| Potato | 2 | Healthy, Phytopthora |
+| Potato | 3 | Early Blight, Healthy, Phytopthora (late blight) |
 | Rice | 6 | Bacterial_Leaf_Blight, Brown_Spot, Healthy, Leaf_Blast, Leaf_Scald, Sheath_Blight |
 | Sugarcane | 10 | Banded Chlorosis, Brown Spot, BrownRust, Grassy shoot, Healthy, Pokkah Boeng, Sett Rot, Smut, Viral Disease, Yellow Leaf |
 | Tomato | 10 | Bacterial Spot, Early Blight, Healthy, Late Blight, Leaf Mold, Septoria Leaf Spot, Spider Mites Two-spotted Spider Mite, Target Spot, Tomato Mosaic Virus, Tomato Yellow Leaf Curl Virus |
@@ -47,7 +47,9 @@ The leaf photo check runs **Kisan Dost's own model inside the farmer's browser**
 Every class maps to a treatment card in `lib/leaf-kb.js`: Urdu name, signs, first-choice and alternative spray by **active ingredient and formulation** (as on the pack in Pakistan), organic and field steps, and safety. Dose is always "as on the label".
 
 Training data (public, Hugging Face): Spitblaze/Corn_or_Maize_Leaf_Disease_Dataset; Project-AgML/rice_leaf_disease_classification; Project-AgML/sugarcane_leaf_disease_classification; Project-AgML/cotton_leaf_disease_classification (raw); Project-AgML/cotton_leaf_disease_classification_bangladesh_2 (raw); Project-AgML/tomato_leaf_disease; Project-AgML/MangoLeafBD_disease_classification; Project-AgML/potato_leaf_disease_classification; Project-AgML/citrus_fruit_leaf_disease_classification (leaf); Project-AgML/wheat_disease_detection (boxes cut out).
-Reproduce: `scripts/leaf-model/fetch.py` → `train.py extract` → `extract_flip.py` → `final.py` (writes `public/models/kisan-leaf.onnx` and `kisan-leaf-card.json` with per-class precision / recall).
+**Not our crop? Then no diagnosis (v2).** The model also has an "other" class (everyday photos, bare backgrounds, leaves of crops we do not cover) and a similarity check against each crop class. On held-out photos it refused 100% of everyday photos (400), backgrounds (229) and other-crop leaves (600), while refusing 0.62% of real crop photos (the farmer is asked to retake those). End-to-end accuracy of the shipped int8 file on the 4,372 held-out photos: 95.17% (refusals counted as wrong). Extra data: DScomp380/plant_village (potato incl. Early Blight; other crops and backgrounds as "other"), Imagenette.
+
+Reproduce: `scripts/leaf-model/fetch.py` → `train.py extract` → `extract_flip.py` → `extra_feats.py` → `final2.py` → `e2e2.py` (writes `public/models/kisan-leaf-v2.onnx`, `kisan-leaf-v2-labels.json` and `kisan-leaf-card.json` with per-class precision / recall).
 
 Area disease warnings (`lib/disease-rules.js`) are rule based on the live 16-day forecast and the Punjab / Sindh crop calendar; they need no AI either.
 
