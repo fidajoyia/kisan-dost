@@ -327,3 +327,4 @@ a{color:var(--leaf)}
 .flood .fl-th,.flood .fl-table .fl-th{background:var(--nehar-soft)}
 .sf-best{border-color:var(--board)}
 @media (min-width:861px){.cam{max-width:720px}.ai-off{max-width:720px}}
+.board-err{position:relative;z-index:1;margin:10px 0 0;background:#fff;color:var(--ink);border-radius:10px;padding:8px 12px;font-size:.95rem;border-inline-start:5px solid var(--sarson)}

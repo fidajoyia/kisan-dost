@@ -187,7 +187,7 @@ export function ResearchFeed({ data, state, lang, newIds, zone, band, onRetry })
               })}
             </div>
           )}
-        {data?.mode === "raw" ? <p className="note">{pick(lang, "یہ اصل عنوانات ہیں؛ آسان اردو خلاصے کے لیے سرور پر ANTHROPIC_API_KEY ضروری ہے۔", "These are original titles; simple summaries need ANTHROPIC_API_KEY on the server.")}</p> : null}
+        {data?.mode === "raw" ? <p className="note">{pick(lang, "یہ تحقیق کے اصل عنوانات ہیں، ہر ایک کے ساتھ اصل ماخذ کا لنک موجود ہے۔", "These are the original research titles, each linked to its source.")}</p> : null}
       </section>
       <Centers lang={lang} />
     </div>

@@ -82,7 +82,7 @@ export default function Home() {
     setLang(LS.get("kd-lang") || "ur"); locate();
     fetch("/api/health").then((r) => r.json()).then((h) => {
       setAi(!!h.ai);
-      if (!h.ai && !LS.get("kd-tab")) setTab("flood"); // the warnings tab needs the AI; open on the flood outlook instead
+      if (!h.ai) setTab((t) => (t === "alerts" ? "flood" : t)); // the warnings tab needs the AI; open on the flood outlook instead
     }).catch(() => {});
   }, []);
 
@@ -184,9 +184,8 @@ export default function Home() {
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (e2) {
       const m = String(e2?.message || "");
-      if (/ANTHROPIC_API_KEY/.test(m)) { setAi(false); setErr("پتے کا معائنہ ابھی بند ہے: سرور پر AI کی چابی (ANTHROPIC_API_KEY) شامل نہیں کی گئی۔"); }
-      else if (/Anthropic API 401|authentication|invalid x-api-key/i.test(m)) setErr("سرور پر لگی AI کی چابی درست نہیں۔ Vercel میں ANTHROPIC_API_KEY چیک کریں۔");
-      else if (/Anthropic API 429|rate/i.test(m)) setErr("ابھی بہت زیادہ درخواستیں آ رہی ہیں۔ ایک منٹ بعد دوبارہ تصویر لیں۔");
+      if (/AI_NOT_CONFIGURED/.test(m)) { setAi(false); setErr("پتے کا معائنہ اس وقت دستیاب نہیں۔ کچھ دیر بعد دوبارہ کوشش کریں۔ تب تک موسم، سیلاب وارننگ اور بیج مشورہ دیکھ سکتے ہیں۔"); }
+      else if (/ 429|rate|quota/i.test(m)) setErr("ابھی بہت زیادہ کسان تصویریں بھیج رہے ہیں۔ ایک منٹ بعد دوبارہ تصویر لیں۔");
       else if (e2?.server) setErr("تصویر کا معائنہ نہیں ہو سکا۔ پتے کی قریب سے صاف تصویر دوبارہ لیں۔");
       else setErr("سرور سے رابطہ نہیں ہو سکا۔ انٹرنیٹ چیک کر کے دوبارہ تصویر لیں۔");
     } finally { setBusy(false); }
@@ -239,12 +238,7 @@ export default function Home() {
           </label>
           <label><input id="gallery" type="file" accept="image/*" multiple onChange={onPick} disabled={busy} /><span className="pick">گیلری سے</span></label>
         </div>
-        {ai === false ? (
-          <div className="ai-off" role="status">
-            <b>پتے کا معائنہ ابھی بند ہے:</b> سرور پر AI کی چابی شامل نہیں کی گئی۔ موسم، سیلاب اور بیج کا مشورہ کام کر رہا ہے۔
-            <small>ایپ چلانے والے کے لیے: Vercel میں <span className="latin">ANTHROPIC_API_KEY</span> شامل کریں۔</small>
-          </div>
-        ) : null}
+        {err ? <p className="board-err" role="alert">{err}</p> : null}
         {images.length ? <div className="thumbs">{images.map((im, i) => <div className="thumb" key={i}><img src={im.preview} alt={`پتے کی تصویر ${i + 1}`} /></div>)}</div> : null}
         <p className="hint">دن کی روشنی میں ایک پتا قریب سے لیں۔ گیلری سے اوپر اور نیچے کی دونوں تصویریں (3 تک) ایک ساتھ دے سکتے ہیں۔</p>
       </header>
@@ -281,7 +275,7 @@ export default function Home() {
               ["seeds", "بیج مشورہ", ""],
               ["research", "نئی تحقیق", "sun"],
               ["import", "بیج کی درآمد", ""],
-            ].map(([k, l, c]) => (
+            ].filter(([k]) => k !== "alerts" || ai !== false || result).map(([k, l, c]) => (
               <button key={k} id={`tab-${k}`} data-c={c} role="tab" type="button" aria-selected={tab === k} aria-controls="sheet-panel" onClick={() => openTab(k)}>
                 {l}{k === "research" && newIds.size && tab !== "research" ? <span className="count num">{newIds.size}</span> : null}{k === "flood" && flood?.farm?.overall && ["high", "severe"].includes(flood.farm.overall.level) && tab !== "flood" ? <span className="count">!</span> : null}
               </button>
@@ -293,7 +287,6 @@ export default function Home() {
               : tab === "seeds" ? <SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => openTab("import")} />
               : tab === "research" ? <ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} zone={zoneNow} band={tempSummary(wx)?.band} onRetry={() => setResTry((n) => n + 1)} />
               : tab === "import" ? <ImportGuide lang={lang} />
-              : err ? <p className="status err">{err}</p>
               : result ? <Result d={result} place={placeLabel} />
               : <Alerts outlook={outlook} state={ai === false ? "noai" : outState} />}
           </div>
@@ -380,7 +373,7 @@ function OutlookTable({ rows }) {
 
 function Alerts({ outlook, state }) {
   if (state === "loading") return <div className="thinking"><div className="spin" /><span>آپ کے علاقے کی فصلوں کے لیے وارننگ تیار ہو رہی ہے…</span></div>;
-  if (state === "noai") return <p className="status">علاقے کی بیماری وارننگ کے لیے بھی AI کی چابی درکار ہے، جو ابھی سرور پر شامل نہیں۔ اوپر سیلاب وارننگ اور بیج مشورہ کھول کر دیکھیں۔</p>;
+  if (state === "noai") return <p className="status">آپ کے علاقے کی بیماری وارننگ کچھ دیر میں یہاں نظر آئے گی۔ تب تک سیلاب وارننگ اور بیج مشورہ دیکھیں۔</p>;
   if (state === "error") return <p className="status err">علاقے کی وارننگ نہیں مل سکی۔ تصویر لے کر معائنہ پھر بھی ہو سکتا ہے۔</p>;
   if (!outlook) return <p className="status">لوکیشن اور موسم ملتے ہی آپ کے علاقے کی فصلوں کے لیے بیماری کی پیشگی وارننگ یہاں نظر آئے گی۔ پتے کا معائنہ کرنے کے لیے تصویر لیں۔</p>;
   return (
