@@ -51,7 +51,7 @@ a{color:var(--leaf)}
 .board h1{font-family:var(--f-display);font-weight:400;font-size:3rem;line-height:1.7;margin:0;color:#fff;letter-spacing:0}
 .board .say{margin:-6px 0 0;font-size:1rem;color:#d8ecdf;max-width:44ch}
 .board select{font:inherit;font-size:.9rem;color:#fff;background:transparent;border:1.5px solid rgba(255,255,255,.55);border-radius:8px;padding:2px 10px;width:auto;position:relative;z-index:1}
-.board select option{color:var(--ink);background:#fff}
+.board select option{color:#15201a;background:#fff}
 .where{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:10px;font-size:.95rem;position:relative;z-index:1}
 .where .w-temp{font-family:var(--f-mono);font-weight:700;font-size:1.35rem;direction:ltr;unicode-bidi:isolate}
 .where .linkbtn{color:var(--sarson);text-decoration:underline}
@@ -83,7 +83,7 @@ a{color:var(--leaf)}
 
 /* panels: white sheet; the heading is a small painted label in its category colour */
 .panel{background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:0 16px 16px;overflow:hidden}
-.panel>h2{font-family:var(--f-display);font-weight:400;font-size:1.35rem;line-height:1.9;margin:0 -16px 12px;padding:4px 16px 6px;background:var(--nehar);color:#fff;display:flex;justify-content:space-between;align-items:center}
+.panel>h2{font-family:var(--f-display);font-weight:400;font-size:1.35rem;line-height:1.9;margin:0 -16px 12px;padding:4px 16px 6px;background:#11607a;color:#fff;display:flex;justify-content:space-between;align-items:center}
 .panel>h2 .src{font-family:var(--f-latin);font-size:.78rem;color:#cfe6ee}
 .panel.plain{padding-top:14px}
 .step{display:none}
@@ -106,7 +106,7 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
 .sheet-tabs::-webkit-scrollbar{display:none}
 .sheet-tabs button{--c:var(--board);font:inherit;font-size:.98rem;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;
   background:var(--sheet);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:5px 14px;cursor:pointer}
-.sheet-tabs button[data-c="bad"]{--c:var(--brick)} .sheet-tabs button[data-c="water"]{--c:var(--nehar)} .sheet-tabs button[data-c="sun"]{--c:#8a5d00}
+.sheet-tabs button[data-c="bad"]{--c:#9e2a2b} .sheet-tabs button[data-c="water"]{--c:#11607a} .sheet-tabs button[data-c="sun"]{--c:#8a5d00}
 .sheet-tabs button[aria-selected="true"]{background:var(--c);border-color:var(--c);color:#fff;box-shadow:inset 0 0 0 2px var(--c),inset 0 0 0 3.5px rgba(255,255,255,.6)}
 .sheet-tabs .count{background:var(--brick);color:#fff;border-radius:99px;font-size:.72rem;min-width:20px;padding:0 6px;line-height:1.6;font-family:var(--f-mono)}
 .sheet-tabs button[aria-selected="true"] .count{background:#fff;color:var(--c)}
@@ -327,4 +327,4 @@ a{color:var(--leaf)}
 .flood .fl-th,.flood .fl-table .fl-th{background:var(--nehar-soft)}
 .sf-best{border-color:var(--board)}
 @media (min-width:861px){.cam{max-width:720px}.ai-off{max-width:720px}}
-.board-err{position:relative;z-index:1;margin:10px 0 0;background:#fff;color:var(--ink);border-radius:10px;padding:8px 12px;font-size:.95rem;border-inline-start:5px solid var(--sarson)}
+.board-err{position:relative;z-index:1;margin:10px 0 0;background:#fff;color:#15201a;border-radius:10px;padding:8px 12px;font-size:.95rem;border-inline-start:5px solid var(--sarson)}
