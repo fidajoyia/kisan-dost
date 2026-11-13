@@ -328,3 +328,14 @@ a{color:var(--leaf)}
 .sf-best{border-color:var(--board)}
 @media (min-width:861px){.cam{max-width:720px}.ai-off{max-width:720px}}
 .board-err{position:relative;z-index:1;margin:10px 0 0;background:#fff;color:#15201a;border-radius:10px;padding:8px 12px;font-size:.95rem;border-inline-start:5px solid var(--sarson)}
+/* spray recommendation: the farmer's main take-away after a diagnosis */
+.spray{border:2px solid var(--brick);border-radius:12px;padding:12px 16px;background:var(--bad-soft)}
+.spray .sec-title::before{background:var(--brick)}
+.spray-list{margin:0;padding-inline-start:22px;display:flex;flex-direction:column;gap:8px}
+.spray-list li b{display:block;font-size:1.1rem;color:var(--ink)}
+.spray-list li .latin{display:block;font-weight:600;color:var(--bad)}
+.spray-list li small{display:block;color:var(--muted);font-size:.85rem}
+.spray-note{margin:10px 0 0;font-size:.95rem;color:var(--ink)}
+.spray-note.wx{border-inline-start:4px solid var(--nehar);padding-inline-start:10px}
+.safety{margin:10px 0 0;padding-inline-start:20px;font-size:.84rem;color:var(--muted)}
+.model-note{font-size:.82rem;color:var(--muted);margin:0}

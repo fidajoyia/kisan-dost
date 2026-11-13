@@ -5,6 +5,7 @@ import { tempSummary } from "@/lib/seeds";
 import { ResearchFeed, ImportGuide } from "./advisor";
 import { SeedFinder } from "./seeds";
 import { FloodOutlook } from "./flood";
+import { diagnoseLocally, warmLeafModel } from "./leaf-local";
 
 const LS = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } },
@@ -82,7 +83,6 @@ export default function Home() {
     setLang(LS.get("kd-lang") || "ur"); locate();
     fetch("/api/health").then((r) => r.json()).then((h) => {
       setAi(!!h.ai);
-      if (!h.ai) setTab((t) => (t === "alerts" ? "flood" : t)); // the warnings tab needs the AI; open on the flood outlook instead
     }).catch(() => {});
   }, []);
 
@@ -100,7 +100,7 @@ export default function Home() {
   // 3. Regional disease alerts + days 17–30 outlook (cached per place, day and language).
   useEffect(() => {
     if (!loc || !wx) return;
-    const key = `kd-outlook:${loc.district || `${coords.lat.toFixed(1)},${coords.lon.toFixed(1)}`}:${wx.today}:${lang}`;
+    const key = `kd-outlook2:${loc.district || `${coords.lat.toFixed(1)},${coords.lon.toFixed(1)}`}:${wx.today}:${lang}`;
     const cached = LS.get(key);
     if (cached) { setOutlook(cached); setOutState("ok"); return; }
     setOutState("loading");
@@ -171,23 +171,15 @@ export default function Home() {
     try {
       const imgs = await Promise.all(files.map(compress));
       setImages(imgs);
-      const r = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ images: imgs.map(({ mediaType, data }) => ({ mediaType, data })), location: loc || coords, weather: wx, lang }),
-      });
-      const j = await r.json();
-      if (!r.ok || j.error) throw Object.assign(new Error(j.error || "failed"), { server: true });
+      // Kisan Dost's own model, on the phone: no API, no internet needed after the first load
+      const j = await diagnoseLocally(imgs, wx);
       setResult(j); setTab("alerts");
       const hist = LS.get("kd-history") || [];
       LS.set("kd-history", [{ t: Date.now(), name: j.plant?.name_local || "", place: loc?.district || "" }, ...hist].slice(0, 20));
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (e2) {
-      const m = String(e2?.message || "");
-      if (/AI_NOT_CONFIGURED/.test(m)) { setAi(false); setErr("پتے کا معائنہ اس وقت دستیاب نہیں۔ کچھ دیر بعد دوبارہ کوشش کریں۔ تب تک موسم، سیلاب وارننگ اور بیج مشورہ دیکھ سکتے ہیں۔"); }
-      else if (/ 429|rate|quota/i.test(m)) setErr("ابھی بہت زیادہ کسان تصویریں بھیج رہے ہیں۔ ایک منٹ بعد دوبارہ تصویر لیں۔");
-      else if (e2?.server) setErr("تصویر کا معائنہ نہیں ہو سکا۔ پتے کی قریب سے صاف تصویر دوبارہ لیں۔");
-      else setErr("سرور سے رابطہ نہیں ہو سکا۔ انٹرنیٹ چیک کر کے دوبارہ تصویر لیں۔");
+      console.error("leaf check failed", e2);
+      setErr(/runtime|model file/.test(String(e2?.message)) ? "ماڈل لوڈ نہیں ہو سکا۔ انٹرنیٹ چیک کر کے دوبارہ تصویر لیں (پہلی بار ماڈل ایک دفعہ ڈاؤن لوڈ ہوتا ہے)۔" : "تصویر کا معائنہ نہیں ہو سکا۔ پتے کی قریب سے صاف تصویر دوبارہ لیں۔");
     } finally { setBusy(false); }
   }
 
@@ -228,7 +220,7 @@ export default function Home() {
           </span>
         </div>
 
-        <div className="cam">
+        <div className="cam" onPointerDown={() => warmLeafModel().catch(() => {})} onFocus={() => warmLeafModel().catch(() => {})}>
           <label>
             <input id="camera" type="file" accept="image/*" capture="environment" onChange={onPick} disabled={busy} />
             <span className="shoot">
@@ -275,20 +267,20 @@ export default function Home() {
               ["seeds", "بیج مشورہ", ""],
               ["research", "نئی تحقیق", "sun"],
               ["import", "بیج کی درآمد", ""],
-            ].filter(([k]) => k !== "alerts" || ai !== false || result).map(([k, l, c]) => (
+            ].map(([k, l, c]) => (
               <button key={k} id={`tab-${k}`} data-c={c} role="tab" type="button" aria-selected={tab === k} aria-controls="sheet-panel" onClick={() => openTab(k)}>
                 {l}{k === "research" && newIds.size && tab !== "research" ? <span className="count num">{newIds.size}</span> : null}{k === "flood" && flood?.farm?.overall && ["high", "severe"].includes(flood.farm.overall.level) && tab !== "flood" ? <span className="count">!</span> : null}
               </button>
             ))}
           </div>
           <div className="sheet-body" id="sheet-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
-            {busy ? <div className="thinking"><div className="spin" /><span>تصویر کا معائنہ ہو رہا ہے… 20 سے 60 سیکنڈ</span></div>
+            {busy ? <div className="thinking"><div className="spin" /><span>تصویر کا معائنہ ہو رہا ہے… چند سیکنڈ</span></div>
               : tab === "flood" ? <FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} />
               : tab === "seeds" ? <SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => openTab("import")} />
               : tab === "research" ? <ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} zone={zoneNow} band={tempSummary(wx)?.band} onRetry={() => setResTry((n) => n + 1)} />
               : tab === "import" ? <ImportGuide lang={lang} />
               : result ? <Result d={result} place={placeLabel} />
-              : <Alerts outlook={outlook} state={ai === false ? "noai" : outState} />}
+              : <Alerts outlook={outlook} state={outState} />}
           </div>
         </main>
       </div>
@@ -378,7 +370,7 @@ function Alerts({ outlook, state }) {
   if (!outlook) return <p className="status">لوکیشن اور موسم ملتے ہی آپ کے علاقے کی فصلوں کے لیے بیماری کی پیشگی وارننگ یہاں نظر آئے گی۔ پتے کا معائنہ کرنے کے لیے تصویر لیں۔</p>;
   return (
     <div className="stack">
-      <section>
+      {arr(outlook.alerts).length ? <section>
         <h3 className="sec-title">آپ کے علاقے میں خطرہ (اگلے 16 دن)</h3>
         <div className="risks">
           {arr(outlook.alerts).map((a, i) => {
@@ -386,7 +378,7 @@ function Alerts({ outlook, state }) {
             return <div className="risk" key={i}><span className={`pill ${L}`}>{LVL[L]}</span><h4>{a.crop}: {a.threat}</h4><p>{a.reason}</p>{a.action ? <div className="when">کیا کریں: {a.action}</div> : null}</div>;
           })}
         </div>
-      </section>
+      </section> : null}
       {arr(outlook.farm_tips).length ? <section><h3 className="sec-title">موسمی مشورے</h3><ul className="list">{arr(outlook.farm_tips).map((t, i) => <li key={i}>{t}</li>)}</ul></section> : null}
     </div>
   );
@@ -443,15 +435,44 @@ function Result({ d, place }) {
         </div>
       </section>
 
-      <section>
-        <h3 className="sec-title">آنے والے خطرے کی وارننگ</h3>
-        <div className="risks">
-          {arr(d.risks).map((x, i) => {
-            const L = ["high", "medium", "low"].includes(x.level) ? x.level : "medium";
-            return <div className="risk" key={i}><span className={`pill ${L}`}>{LVL[L]}</span><h4>{x.name_local} <span className="latin" style={{ fontWeight: 400, color: "var(--muted)", fontSize: ".8rem" }}>{x.name_en}</span></h4><p>{x.reason}</p>{x.when ? <div className="when">کب: {x.when}</div> : null}</div>;
-          })}
-        </div>
-      </section>
+      {arr(d.spray).length ? (
+        <section className="spray">
+          <h3 className="sec-title">سفارش کردہ اسپرے (دوا)</h3>
+          <ol className="spray-list">
+            {arr(d.spray).map((x, i) => (
+              <li key={i}>
+                <b>{x.ur}</b>
+                <span className="latin">{x.ai}</span>
+                <small>کس کے لیے: {x.target}{i ? " · متبادل دوا" : " · پہلی پسند"}</small>
+              </li>
+            ))}
+          </ol>
+          {d.sprayNote ? <p className="spray-note">{d.sprayNote}</p> : null}
+          {d.weatherNote ? <p className="spray-note wx">{d.weatherNote}</p> : null}
+          <ul className="safety">{arr(d.safety).map((x, i) => <li key={i}>{x}</li>)}</ul>
+        </section>
+      ) : d.diseases?.length ? (
+        <section className="spray"><h3 className="sec-title">اسپرے</h3><p className="spray-note">{d.sprayNote || "اس مسئلے کے لیے کیمیائی زہر کی ضرورت نہیں؛ نیچے دیے گئے طریقے اپنائیں۔"}</p></section>
+      ) : null}
+
+      {arr(d.alternatives).length ? (
+        <section>
+          <h3 className="sec-title">دوسری ممکنہ تشخیص</h3>
+          <ul className="list">{arr(d.alternatives).map((x, i) => <li key={i}>{x.ur} <span className="num">{x.p}%</span></li>)}</ul>
+        </section>
+      ) : null}
+
+      {arr(d.risks).length ? (
+        <section>
+          <h3 className="sec-title">آنے والے خطرے کی وارننگ</h3>
+          <div className="risks">
+            {arr(d.risks).map((x, i) => {
+              const L = ["high", "medium", "low"].includes(x.level) ? x.level : "medium";
+              return <div className="risk" key={i}><span className={`pill ${L}`}>{LVL[L]}</span><h4>{x.name_local}</h4><p>{x.reason}</p>{x.when ? <div className="when">کب: {x.when}</div> : null}</div>;
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {d.irrigation?.advice ? (
         <section>
@@ -465,9 +486,9 @@ function Result({ d, place }) {
       {arr(d.outlook_17_30).length ? <section><h3 className="sec-title">دن 17 تا 30</h3><OutlookTable rows={d.outlook_17_30} /></section> : null}
 
       <section>
-        <h3 className="sec-title">علاج</h3>
+        <h3 className="sec-title">مزید علاج اور بچاؤ</h3>
         <div className="tabs" role="tablist">
-          {[["organic", "قدرتی / گھریلو"], ["chemical", "کیمیائی"], ["cultural", "کاشت کے طریقے"]].map(([k, l]) => (
+          {[["organic", "قدرتی / گھریلو"], ["cultural", "کاشت کے طریقے"], ["chemical", "کیمیائی"]].map(([k, l]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
@@ -477,6 +498,7 @@ function Result({ d, place }) {
 
       {arr(d.prevention).length ? <section><h3 className="sec-title">بچاؤ</h3><ul className="list">{arr(d.prevention).map((x, i) => <li key={i}>{x}</li>)}</ul></section> : null}
       {d.image_note ? <p className="note">تصویر کے بارے میں: {d.image_note}</p> : null}
+      {d.source === "kisan-dost-model" ? <p className="model-note">یہ تشخیص کسان دوست کے اپنے تربیت یافتہ ماڈل نے آپ کے فون پر کی ہے۔ حتمی فیصلے سے پہلے محکمہ زراعت کے فیلڈ اسسٹنٹ سے تصدیق کر لیں۔</p> : null}
     </div>
   );
 }

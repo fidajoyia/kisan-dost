@@ -19,6 +19,38 @@ Farmer app: take a leaf photo and everything else runs automatically.
 | How to get / import each seed in Pakistan | Built-in guide (NSDRA, DPP import permit, PSW, phytosanitary, research SMTA) | "بیج کی درآمد" tab |
 | New research from the world top-10 agricultural institutions (QS 2026) | Europe PMC papers + Google News (+ OpenAlex with key, + any RSS you add), explained by Claude; cached, refreshed every 6 h + daily cron | "نئی تحقیق" tab |
 
+## Leaf check: our own trained model (no API)
+
+The leaf photo check runs **Kisan Dost's own model inside the farmer's browser**: no AI service, no API key, no cost per photo, and it keeps working without internet once loaded.
+
+| | |
+|---|---|
+| Test accuracy | **95.47%** on 4,372 held-out photos (never used in training) |
+| Crop identified correctly | 99.82% |
+| Classes | 61 diseases / pests / healthy, across 9 crops |
+| Training photos | 17,488 (+ mirrored copies) |
+| Method | Frozen DINOv2-small image features + our MLP classifier (1024 hidden), exported to ONNX, int8 weights (26 MB) |
+| Runtime | onnxruntime-web (WebAssembly), about 0.4 s per photo |
+
+| Crop | Classes | Diseases / conditions |
+|---|---|---|
+| Citrus | 4 | Healthy, black_spot, canker, greening |
+| Cotton | 10 | Alternaria, Bacterial Blight, Curl Virus, Fusarium Wilt, Healthy, Herbicide Growth Damage, Leaf Hopper Jassids, Leaf Redding, Leaf Variegation, Verticillium Wilt |
+| Maize | 4 | Blight, Common Rust, Gray Leaf Spot, Healthy |
+| Mango | 8 | Anthracnose, Bacterial Canker, Cutting Weevil, Die Back, Gall Midge, Healthy, Powdery Mildew, Sooty Mould |
+| Potato | 2 | Healthy, Phytopthora |
+| Rice | 6 | Bacterial_Leaf_Blight, Brown_Spot, Healthy, Leaf_Blast, Leaf_Scald, Sheath_Blight |
+| Sugarcane | 10 | Banded Chlorosis, Brown Spot, BrownRust, Grassy shoot, Healthy, Pokkah Boeng, Sett Rot, Smut, Viral Disease, Yellow Leaf |
+| Tomato | 10 | Bacterial Spot, Early Blight, Healthy, Late Blight, Leaf Mold, Septoria Leaf Spot, Spider Mites Two-spotted Spider Mite, Target Spot, Tomato Mosaic Virus, Tomato Yellow Leaf Curl Virus |
+| Wheat | 7 | Fusarium Head Blight, Glume Blotch, Healthy Ear, Healthy Leaf, Leaf Rust, Powdery Mildew, Stripe Rust |
+
+Every class maps to a treatment card in `lib/leaf-kb.js`: Urdu name, signs, first-choice and alternative spray by **active ingredient and formulation** (as on the pack in Pakistan), organic and field steps, and safety. Dose is always "as on the label".
+
+Training data (public, Hugging Face): Spitblaze/Corn_or_Maize_Leaf_Disease_Dataset; Project-AgML/rice_leaf_disease_classification; Project-AgML/sugarcane_leaf_disease_classification; Project-AgML/cotton_leaf_disease_classification (raw); Project-AgML/cotton_leaf_disease_classification_bangladesh_2 (raw); Project-AgML/tomato_leaf_disease; Project-AgML/MangoLeafBD_disease_classification; Project-AgML/potato_leaf_disease_classification; Project-AgML/citrus_fruit_leaf_disease_classification (leaf); Project-AgML/wheat_disease_detection (boxes cut out).
+Reproduce: `scripts/leaf-model/fetch.py` → `train.py extract` → `extract_flip.py` → `final.py` (writes `public/models/kisan-leaf.onnx` and `kisan-leaf-card.json` with per-class precision / recall).
+
+Area disease warnings (`lib/disease-rules.js`) are rule based on the live 16-day forecast and the Punjab / Sindh crop calendar; they need no AI either.
+
 ## Run
 
 ```bash
