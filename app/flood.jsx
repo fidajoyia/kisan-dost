@@ -36,254 +36,172 @@ const lv = (k, lang) => pick(lang, ...(LEVEL[k] || LEVEL.low));
 const lb = (k, lang) => pick(lang, ...(LABEL[k] || LABEL.unknown));
 const levelClass = (k) => ({ low: "ok", moderate: "mod", high: "hi", severe: "sev" }[k] || "ok");
 
+// Plain words for farmers: how big is the danger, more or less water than last year, more or less
+// rain coming, and what the next months look like. Calculations stay out of sight.
+const DANGER = { low: ["خطرہ کم ہے", "Low danger"], moderate: ["درمیانہ خطرہ", "Medium danger"], high: ["زیادہ خطرہ", "High danger"], severe: ["بہت زیادہ خطرہ", "Very high danger"] };
+const dangerTxt = (k, lang) => pick(lang, ...(DANGER[k] || DANGER.low));
+const pLevel = (p) => (p >= 75 ? "high" : p >= 50 ? "moderate" : "low"); // trained eastern-rivers model
+const RANK = { low: 0, moderate: 1, high: 2, severe: 3 };
+const monthOnly = (ym, lang) => (lang === "ur" ? MONTHS_UR : MONTHS_EN)[+ym.slice(5, 7) - 1];
+
+// Consecutive months with the same danger read as one sentence: "نومبر سے فروری: خطرہ کم ہے"
+function monthStory(months, lang) {
+  const groups = [];
+  for (const m of months) { const g = groups[groups.length - 1]; if (g && g.level === m.level) g.to = m.ym; else groups.push({ level: m.level, from: m.ym, to: m.ym }); }
+  return groups.map((g) => ({ level: g.level, text: `${g.from === g.to ? monthOnly(g.from, lang) : pick(lang, `${monthOnly(g.from, lang)} سے ${monthOnly(g.to, lang)}`, `${monthOnly(g.from, lang)} to ${monthOnly(g.to, lang)}`)}: ${dangerTxt(g.level, lang)}` }));
+}
+const cmpWord = (diff, lang, more, less, same) => (diff >= 5 ? more : diff <= -5 ? less : same);
+
+function riverView(b, east, lang) {
+  const months = east?.months?.length
+    ? east.months.map((m) => ({ ym: m.month, pct: m.p, level: pLevel(m.p) }))
+    : arr(b?.months).map((m) => ({ ym: m.ym, pct: m.risk, level: m.level }));
+  const peak = months.reduce((a, m) => (!a || m.pct > a.pct ? m : a), null);
+  // water now vs last year (dams), or vs normal (Chenab: river flow)
+  let water = null;
+  const d = b?.factors?.dam;
+  if (d?.pct != null && d?.pctLastYear != null) {
+    const name = pick(lang, { tarbela: "تربیلا ڈیم", mangla: "منگلا ڈیم" }[d.key] || "ڈیم", { tarbela: "Tarbela Dam", mangla: "Mangla Dam" }[d.key] || "Dam");
+    water = { diff: d.pct - d.pctLastYear, text: pick(lang,
+      `${name} میں پانی پچھلے سال سے ${cmpWord(d.pct - d.pctLastYear, lang, "زیادہ ہے", "کم ہے", "تقریباً اتنا ہی ہے")} (ابھی ${Math.min(100, Math.round(d.pct))}٪ بھرا، پچھلے سال ${Math.min(100, Math.round(d.pctLastYear))}٪)`,
+      `${name} holds ${cmpWord(d.pct - d.pctLastYear, lang, "more", "less", "about the same")} water than last year (${Math.min(100, Math.round(d.pct))}% full now, ${Math.min(100, Math.round(d.pctLastYear))}% last year)`) };
+  }
+  const ed = arr(east?.dams).filter((x) => x.lastYear);
+  if (!water && ed.length) {
+    const now = ed.reduce((s, x) => s + x.pct, 0) / ed.length, ly = ed.reduce((s, x) => s + x.lastYear.pct, 0) / ed.length;
+    const names = ed.map((x) => pick(lang, x.ur.split(" (")[0], x.en.split(" (")[0])).join(pick(lang, " اور ", " and "));
+    water = { diff: now - ly, text: pick(lang,
+      `بھارت کے ${names} ڈیم میں پانی پچھلے سال سے ${cmpWord(now - ly, lang, "زیادہ ہے", "کم ہے", "تقریباً اتنا ہی ہے")} (ابھی ${Math.round(now)}٪ بھرا، پچھلے سال ${Math.round(ly)}٪)`,
+      `India's ${names} dam${ed.length > 1 ? "s hold" : " holds"} ${cmpWord(now - ly, lang, "more", "less", "about the same")} water than last year (${Math.round(now)}% full now, ${Math.round(ly)}% last year)`) };
+  }
+  if (!water && east?.flowNowPctOfNormal != null) {
+    const v = east.flowNowPctOfNormal;
+    water = { diff: v - 100, text: pick(lang, `دریا میں اس وقت پانی ${cmpWord(v - 100, lang, "عام دنوں سے زیادہ", "عام دنوں سے کم", "عام دنوں جتنا")} ہے`, `The river carries ${cmpWord(v - 100, lang, "more water than usual", "less water than usual", "a usual amount of water")} right now`) };
+  }
+  // rain coming over the river's upper area
+  let rainPct = b?.factors?.rain?.forecastPct;
+  if (rainPct == null && east?.months?.length) rainPct = east.months.reduce((s, m) => s + m.rainPct, 0) / east.months.length;
+  const rain = rainPct == null ? null : { v: rainPct, text: pick(lang,
+    rainPct >= 20 ? "آنے والے مہینوں میں معمول سے زیادہ بارش متوقع ہے" : rainPct <= -20 ? "آنے والے مہینوں میں معمول سے کم بارش متوقع ہے" : "آنے والے مہینوں میں بارش تقریباً معمول کے مطابق متوقع ہے",
+    rainPct >= 20 ? "More rain than normal is expected in the coming months" : rainPct <= -20 ? "Less rain than normal is expected in the coming months" : "About normal rain is expected in the coming months") };
+  return { id: b?.id || east?.id, name: pick(lang, (b || east).ur, (b || east).en), months, peak, level: peak?.level || "low", water, rain };
+}
+
+function adviceFor(level, ym, lang) {
+  const when = ym ? monthOnly(ym, lang) : "";
+  if (level === "severe" || level === "high") return pick(lang,
+    `${when} سے پہلے دریا کے کچے / بیلے کی فصل کاٹ لیں، مویشی اور اناج اونچی جگہ لے جانے کا انتظام رکھیں، اور ریڈیو / PDMA کی وارننگ روز سنیں۔`,
+    `Before ${when}, harvest crops in the riverbed (kacha / bela), plan to move animals and grain to high ground, and listen to radio / PDMA warnings daily.`);
+  if (level === "moderate") return pick(lang,
+    `${when} میں ہوشیار رہیں: دریا کے قریب نشیبی کھیت میں مہنگی فصل سوچ کر لگائیں، نالیاں صاف رکھیں اور سرکاری وارننگ سنتے رہیں۔`,
+    `Stay alert in ${when}: think before planting a costly crop in low fields near the river, keep drains clean and follow official warnings.`);
+  return pick(lang, "فکر کی بات نہیں، معمول کے مطابق کاشت کریں۔", "Nothing to worry about; farm as usual.");
+}
+
+function Meter({ pct, level, lang }) {
+  return (
+    <div className={`fx-meter lv-${levelClass(level)}`} aria-label={`${pct}%`}>
+      <span className="fx-track"><span style={{ width: `${Math.max(3, Math.min(100, pct ?? 0))}%` }} /></span>
+      <b className="num">{pct ?? "–"}٪</b>
+    </div>
+  );
+}
+
+function RiverCard({ v, near, lang }) {
+  return (
+    <div className={`fx-river lv-${levelClass(v.level)}`}>
+      <div className="fx-rhead">
+        <b>{v.name}{near ? <em className="fl-you">{pick(lang, "آپ کے قریب", "near you")}</em> : null}</b>
+        <span className="fl-lv">{dangerTxt(v.level, lang)}</span>
+      </div>
+      <Meter pct={v.peak?.pct} level={v.level} lang={lang} />
+      <ul className="fx-facts">
+        {v.water ? <li className={v.water.diff >= 5 ? "up" : v.water.diff <= -5 ? "down" : ""}>{v.water.text}</li> : null}
+        {v.rain ? <li className={v.rain.v >= 20 ? "up" : v.rain.v <= -20 ? "down" : ""}>{v.rain.text}</li> : null}
+      </ul>
+      <div className="fx-story">{monthStory(v.months, lang).map((g, i) => <span key={i} className={`lv-${levelClass(g.level)}`}>{g.text}</span>)}</div>
+      <p className="fx-advice">{adviceFor(v.level, v.peak?.ym, lang)}</p>
+    </div>
+  );
+}
+
 export function FloodOutlook({ data, state, lang, onRetry }) {
   const dir = lang === "ur" ? "rtl" : "ltr";
-  if (state === "loading" && !data) return <div className="thinking"><div className="spin" /><span>{pick(lang, "ڈیم، دریا اور اگلے 7 ماہ کی موسمی پیشگوئی جانچی جا رہی ہے… (پہلی بار 20–40 سیکنڈ)", "Checking dams, rivers and the 7-month seasonal forecast… (first time 20–40 s)")}</span></div>;
+  if (state === "loading" && !data) return <div className="thinking"><div className="spin" /><span>{pick(lang, "دریا، ڈیم اور آنے والے مہینوں کا موسم دیکھا جا رہا ہے…", "Checking rivers, dams and the coming months' weather…")}</span></div>;
   if (state === "nogps") return <p className="status">{pick(lang, "سیلاب کی پیشگوئی کے لیے لوکیشن (GPS) کی اجازت دیں۔", "Allow location (GPS) to get the flood outlook.")}</p>;
-  if (!data || data.error) return <p className="status err">{pick(lang, "سیلاب کی پیشگوئی ابھی نہیں مل سکی۔", "The flood outlook could not be loaded right now.")} {data?.error ? <span className="latin muted">({data.error})</span> : null} <button type="button" className="btn ghost" onClick={onRetry}>{pick(lang, "دوبارہ کوشش", "Retry")}</button></p>;
+  if (!data || data.error) return <p className="status err">{pick(lang, "سیلاب کی پیشگوئی ابھی نہیں مل سکی۔", "The flood outlook could not be loaded right now.")} <button type="button" className="btn ghost" onClick={onRetry}>{pick(lang, "دوبارہ کوشش", "Retry")}</button></p>;
 
-  const f = data.farm || {}, ov = f.overall, ex = data.explain;
-  const main = arr(data.basins).find((b) => b.id === f.main) || data.local;
-  const mf = main?.factors || {};
+  const f = data.farm || {};
   const near = arr(data.near);
-  const basinName = (id) => { const b = arr(data.basins).find((x) => x.id === id) || (id === "local" ? data.local : null); return b ? pick(lang, b.ur, b.en) : id; };
-  const dams = data.dams?.reservoirs || {};
-  const damRow = (key, name) => dams[key] ? {
-    name, now: `${dams[key].pct}% · ${dams[key].level} ft`, last: `${dams[key].pctLastYear}% · ${dams[key].levelLastYear} ft`,
-    diff: Math.round((dams[key].pct - dams[key].pctLastYear) * 10) / 10,
-  } : null;
-  const tarbela = damRow("tarbela", pick(lang, "تربیلا ڈیم", "Tarbela Dam")), mangla = damRow("mangla", pick(lang, "منگلا ڈیم", "Mangla Dam"));
-  const cond = f.condition;
+  const eastBy = Object.fromEntries(arr(data.eastern?.rivers).map((r) => [r.id, r]));
+  const views = arr(data.basins).map((b) => riverView(b, eastBy[b.id], lang));
+  for (const r of arr(data.eastern?.rivers)) if (!views.some((v) => v.id === r.id)) views.push(riverView(null, r, lang));
+  const isNear = (id) => near.some((n) => n.id === id);
+  const nearViews = views.filter((v) => isNear(v.id)), otherViews = views.filter((v) => !isNear(v.id));
+  const local = data.local ? riverView(data.local, null, lang) : null;
+
+  // the farm: for each month the bigger of heavy local rain and the rivers near it
+  const farmMonths = (local?.months || []).map((m) => {
+    let best = { ...m, src: "local" };
+    for (const v of nearViews) { const x = v.months.find((k) => k.ym === m.ym); if (x && RANK[x.level] > RANK[best.level]) best = { ...x, src: v.id }; }
+    return best;
+  });
+  const farmPeak = farmMonths.reduce((a, m) => (!a || RANK[m.level] > RANK[a.level] || (m.level === a.level && m.pct > a.pct) ? m : a), null);
+  const srcName = (id) => (id === "local" ? pick(lang, "آپ کے علاقے میں تیز بارش", "heavy rain in your area") : views.find((v) => v.id === id)?.name || "");
+  const ms = f.monsoonSignal;
 
   return (
     <div className="stack flood" dir={dir}>
-      {/* 1. Headline */}
-      <section className={`fl-hero lv-${levelClass(ov?.level)}`}>
-        <div className="fl-gauge">
-          <span className="num">{ov?.risk ?? "–"}</span>
-          <small>/100</small>
-        </div>
-        <div className="fl-head">
-          <div className="fl-tag">{pick(lang, "اگلے 7 ماہ میں سیلاب کا خطرہ", "Flood risk, next 7 months")}</div>
-          <h3>{lv(ov?.level, lang)}{ov?.ym ? <span> · {pick(lang, "سب سے زیادہ", "peak")} {mName(ov.ym, lang)}</span> : null}</h3>
-          <p>{ex?.headline || (ov ? pick(lang,
-            `آپ کے علاقے کے لیے سب سے بڑا خطرہ ${basinName(ov.source)} سے ہے${ov.driver ? `، وجہ: ${pick(lang, ...DRIVER[ov.driver])}` : ""}۔`,
-            `Your biggest risk comes from ${basinName(ov.source)}${ov.driver ? `, driven by ${DRIVER[ov.driver][1]}` : ""}.`) : "")}</p>
-        </div>
+      {/* 1. The answer for this farm */}
+      <section className={`fx-hero lv-${levelClass(farmPeak?.level)}`}>
+        <span className="fx-tag">{pick(lang, "آپ کے کھیت کے لیے اگلے 7 مہینے", "Your farm, next 7 months")}</span>
+        <h3>{dangerTxt(farmPeak?.level, lang)}</h3>
+        <Meter pct={farmPeak?.pct} level={farmPeak?.level} lang={lang} />
+        {farmPeak && farmPeak.level !== "low" ? <p>{pick(lang, `سب سے زیادہ خطرہ ${monthOnly(farmPeak.ym, lang)} میں، ${srcName(farmPeak.src)} کی وجہ سے۔`, `Highest in ${monthOnly(farmPeak.ym, lang)}, from ${srcName(farmPeak.src)}.`)}</p>
+          : <p>{pick(lang, "آنے والے مہینوں میں سیلاب کا بڑا خطرہ نظر نہیں آ رہا۔", "No big flood danger is seen in the coming months.")}</p>}
+        <div className="fx-story">{monthStory(farmMonths, lang).map((g, i) => <span key={i} className={`lv-${levelClass(g.level)}`}>{g.text}</span>)}</div>
+        {local?.rain ? <p className="fx-line">{pick(lang, "آپ کے علاقے میں: ", "In your area: ")}{local.rain.text}۔</p> : null}
+        {f.shortRange ? <p className={`fx-line ${f.shortRange.flag !== "none" ? "fl-alert" : ""}`}>{f.shortRange.flag === "none"
+          ? pick(lang, "اگلے 2 ہفتے: کوئی تیز بارش نہیں۔", "Next 2 weeks: no heavy rain.")
+          : pick(lang, `اگلے 2 ہفتے: ${new Date(f.shortRange.maxDay.date + "T00:00").toLocaleDateString("ur-PK", { day: "numeric", month: "long" })} کو تیز بارش کا امکان۔ نشیبی کھیتوں سے پانی نکالنے کا انتظام رکھیں۔`, `Next 2 weeks: heavy rain possible on ${f.shortRange.maxDay.date}. Be ready to drain low fields.`)}</p> : null}
       </section>
-      {ex?.summary ? <p className="fl-summary">{ex.summary}</p> : null}
-      {data.status?.history && data.status.history !== "complete" ? <p className="note">{pick(lang, "پچھلے سالوں کا موسمی ریکارڈ ابھی لوڈ ہو رہا ہے؛ چند منٹ بعد دوبارہ کھولیں تو \"پچھلا سال\" والے خانے مکمل ہو جائیں گے۔", "Past years' weather records are still loading; reopen in a few minutes and the \"last year\" columns will be complete.")} <button type="button" className="btn ghost" onClick={onRetry}>{pick(lang, "تازہ کریں", "Refresh")}</button></p> : null}
 
-      {/* 2. This year vs last year */}
-      {cond ? (
-        <section>
-          <h3 className="sec-title">{pick(lang, "اس سال بمقابلہ پچھلا سال", "This year vs last year")} <small>{main ? pick(lang, main.ur, main.en) : ""}</small></h3>
-          <div className={`fl-verdict v-${cond.verdict}`}>
-            <b>{pick(lang, ...VERDICT[cond.verdict])}</b>
-            <div className="fl-bars">
-              <Bar label={pick(lang, "اس سال", "This year")} v={cond.thisYear} />
-              <Bar label={pick(lang, "پچھلا سال", "Last year")} v={cond.lastYear} muted />
-            </div>
-            <small>{pick(lang, "50 = عام سال۔ زیادہ نمبر = سیلاب پیدا کرنے والے حالات زیادہ (بارش، گرمی، برف، ڈیم)۔", "50 = a normal year. Higher = more flood-driving conditions (rain, heat, snow, dams).")}</small>
-            {ex?.vs_last_year ? <p>{ex.vs_last_year}</p> : null}
-          </div>
-        </section>
+      {!f.monsoonCovered ? (
+        <p className="note">{pick(lang,
+          `مون سون (جولائی سے ستمبر) کی پیشگوئی ابھی دستیاب نہیں، فروری–مارچ میں یہاں آ جائے گی۔${ms ? ` ابتدائی اندازہ: مون سون ${{ above: "معمول سے زیادہ", normal: "تقریباً معمول کے مطابق", below: "معمول سے کمزور" }[ms.tendency]} رہ سکتا ہے (ابھی پکا نہیں)۔` : ""}`,
+          `The monsoon (July–September) forecast is not available yet; it appears here in February–March.${ms ? ` Early hint: the monsoon may be ${{ above: "stronger than normal", normal: "about normal", below: "weaker than normal" }[ms.tendency]} (not certain yet).` : ""}`)}</p>
       ) : null}
 
-      {/* 3. Month by month */}
-      <section>
-        <h3 className="sec-title">{pick(lang, "مہینہ وار خطرہ", "Risk by month")} <small>ECMWF SEAS5</small></h3>
-        <div className="fl-months">
-          {arr(f.months).map((m) => (
-            <div key={m.ym} className={`fl-m lv-${levelClass(m.level)}`}>
-              <span className="fl-mn">{mName(m.ym, lang)}</span>
-              <span className="fl-track"><span style={{ width: `${Math.max(3, m.risk)}%` }} /></span>
-              <span className="fl-mv num">{m.risk}</span>
-              <span className="fl-ml">{lv(m.level, lang)}{m.driver ? ` · ${pick(lang, ...DRIVER[m.driver])}` : ""}</span>
-            </div>
-          ))}
-        </div>
-        {!f.monsoonCovered ? (
-          <div className="note fl-monsoon">
-            <b>{pick(lang, "مون سون (جولائی–ستمبر) کا ابتدائی اشارہ", "Early monsoon (Jul–Sep) signal")}:</b>{" "}
-            {f.monsoonSignal ? pick(lang,
-              `${{ above: "معمول سے زیادہ خطرے کی طرف", normal: "تقریباً معمول کے مطابق", below: "معمول سے کم خطرے کی طرف" }[f.monsoonSignal.tendency]} (اعتماد کم)۔ `,
-              `${{ above: "leaning towards higher than normal risk", normal: "close to normal", below: "leaning towards lower than normal risk" }[f.monsoonSignal.tendency]} (low confidence). `) : ""}
-            {pick(lang, "سات ماہ کی پیشگوئی ابھی مون سون تک نہیں پہنچتی؛ یہ اشارہ برف کے ذخیرے، بہار کی گرمی اور ال نینو / لا نینا سے ہے۔ فروری–مارچ سے مون سون کے مہینے بھی پیشگوئی میں آ جائیں گے اور یہ حصہ خود بخود بہتر ہوتا جائے گا۔", "The 7-month forecast does not reach the monsoon yet; this signal comes from snowpack, spring heat and El Niño / La Niña. From February–March the monsoon months enter the forecast and this section updates on its own.")}
-          </div>
-        ) : null}
-      </section>
+      {/* 2. Rivers near the farm */}
+      {nearViews.length ? (
+        <section>
+          <h3 className="sec-title">{pick(lang, "آپ کے قریب دریا", "Rivers near you")}</h3>
+          {nearViews.map((v) => <RiverCard key={v.id} v={v} near lang={lang} />)}
+        </section>
+      ) : <p className="status">{pick(lang, "آپ کا کھیت کسی بڑے دریا کے قریب نہیں۔ آپ کے لیے اصل خطرہ تیز بارش سے اچانک پانی بھرنا ہے۔", "Your farm is not near a big river. Your main danger is sudden flooding from heavy rain.")}</p>}
 
-      {/* 4. Comparison table */}
-      <section>
-        <h3 className="sec-title">{pick(lang, "وجوہات: اس سال اور پچھلے سال کا موازنہ", "Why: this year compared with last year")}</h3>
-        <div className="fl-table" role="table">
-          <div className="fl-tr fl-th" role="row"><span>{pick(lang, "عامل", "Factor")}</span><span>{pick(lang, "اس سال", "This year")}</span><span>{pick(lang, "پچھلا سال", "Last year")}</span></div>
-          {mf.rain ? <Row lang={lang} name={pick(lang, `بارش، اگلے 7 ماہ (${pick(lang, main.ur, main.en)} کا بالائی علاقہ)`, `Rain, next 7 months (${main.en} catchment)`)}
-            a={`${sign(mf.rain.forecastPct)} · ${lb(mf.rain.label, lang)}`} b={`${sign(mf.rain.lastYearPct)} · ${lb(mf.rain.lastYearLabel, lang)}`}
-            hint={pick(lang, "معمول کے مقابلے میں", "vs normal")} /> : null}
-          {mf.heat?.applies ? <Row lang={lang} name={pick(lang, "گرمی (برف و گلیشیئر پگھلنا)", "Heat (snow and glacier melt)")}
-            a={`${sign(mf.heat.meltSeasonK ?? mf.heat.forecastK, "°C")} · ${lb(mf.heat.label, lang)}`} b={`${sign(mf.heat.lastYearK, "°C")} · ${lb(mf.heat.lastYearLabel, lang)}`}
-            hint={pick(lang, "معمول سے زیادہ / کم درجہ حرارت", "temperature vs normal")} /> : null}
-          {mf.snow?.applies ? <Row lang={lang} name={pick(lang, "برف باری، یکم اکتوبر سے اب تک", "Snowfall since 1 October")}
-            a={[mf.snow.toDatePct != null ? sign(mf.snow.toDatePct) : null, mf.snow.toDateCm != null ? `${Math.round(mf.snow.toDateCm * 10) / 10} cm` : null].filter(Boolean).join(" · ") || "–"}
-            b={[mf.snow.lastYearToDatePct != null ? sign(mf.snow.lastYearToDatePct) : null, mf.snow.lastYearToDateCm != null ? `${Math.round(mf.snow.lastYearToDateCm * 10) / 10} cm` : null].filter(Boolean).join(" · ") || "–"}
-            hint={pick(lang, `پیشگوئی: برف کا ذخیرہ ${sign(mf.snow.forecastSwePct)}`, `forecast snowpack ${sign(mf.snow.forecastSwePct)}`)} /> : null}
-          {data.dams?.skardu && data.farm.ffcAgeDays != null && data.farm.ffcAgeDays <= 45 ? <Row lang={lang} name={pick(lang, `اسکردو کا درجہ حرارت (گلیشیئر علاقہ، ${data.dams.date})`, `Skardu temperature (glacier zone, ${data.dams.date})`)}
-            a={`${data.dams.skardu.max}° / ${data.dams.skardu.min}°`} b={`${data.dams.skardu.maxLastYear}° / ${data.dams.skardu.minLastYear}°`}
-            hint={pick(lang, `زیادہ / کم · فرق ${sign(Math.round((data.dams.skardu.max - data.dams.skardu.maxLastYear) * 10) / 10, "°C")}`, `max / min · difference ${sign(Math.round((data.dams.skardu.max - data.dams.skardu.maxLastYear) * 10) / 10, "°C")}`)} /> : null}
-          {tarbela ? <Row lang={lang} name={tarbela.name} a={tarbela.now} b={tarbela.last} hint={pick(lang, `ڈیم میں پانی (${sign(tarbela.diff, " پوائنٹ")})`, `storage (${sign(tarbela.diff, " pts")})`)} /> : null}
-          {mangla ? <Row lang={lang} name={mangla.name} a={mangla.now} b={mangla.last} hint={pick(lang, `ڈیم میں پانی (${sign(mangla.diff, " پوائنٹ")})`, `storage (${sign(mangla.diff, " pts")})`)} /> : null}
-          {data.local?.factors?.rain ? <Row lang={lang} name={pick(lang, "آپ کے کھیت پر بارش، اگلے 7 ماہ", "Rain at your farm, next 7 months")}
-            a={`${sign(data.local.factors.rain.forecastPct)} · ${lb(data.local.factors.rain.label, lang)}`} b={`${sign(data.local.factors.rain.lastYearPct)} · ${lb(data.local.factors.rain.lastYearLabel, lang)}`} /> : null}
-          {data.enso ? <Row lang={lang} name={pick(lang, "ال نینو / لا نینا (بحرالکاہل)", "El Niño / La Niña (Pacific)")}
-            a={`${pick(lang, ...(ENSO[data.enso.phase] || ENSO.neutral))} · ONI ${sign(data.enso.oni, "")}`} b={data.enso.oniYearAgo != null ? `ONI ${sign(data.enso.oniYearAgo, "")}` : "–"}
-            hint={pick(lang, "ال نینو عموماً مون سون کمزور، لا نینا مضبوط کرتا ہے", "El Niño usually weakens the monsoon, La Niña strengthens it")} /> : null}
-        </div>
-        {data.dams?.date ? <p className="hint">{pick(lang, `ڈیم کا ڈیٹا: فیڈرل فلڈ کمیشن کی رپورٹ ${data.dams.date}`, `Dam data: Federal Flood Commission report of ${data.dams.date}`)}{data.farm.ffcAgeDays > 3 ? pick(lang, " (سیلاب کا موسم ختم ہونے کے بعد یہ رپورٹ کبھی کبھار آتی ہے)", " (published only now and then outside flood season)") : ""}. {data.dams.total ? pick(lang, `کل ذخیرہ ${data.dams.total.pct}% (پچھلے سال اسی دن ${data.dams.total.pctLastYear}%)`, `Total storage ${data.dams.total.pct}% (same day last year ${data.dams.total.pctLastYear}%)`) : ""}</p> : null}
-      </section>
-
-      {/* 5. Rivers near the farm + today's gauge */}
-      <section>
-        <h3 className="sec-title">{pick(lang, "آپ کے قریب دریا", "Rivers near you")} <small>FFC gauges</small></h3>
-        {!near.length ? <p className="status">{pick(lang, "آپ کا کھیت کسی بڑے دریا کے 35 کلومیٹر کے اندر نہیں۔ آپ کے لیے اصل خطرہ مقامی تیز بارش اور اچانک سیلاب ہے۔", "Your farm is not within 35 km of a major river. Your main risk is heavy local rain and flash flooding.")}</p> : (
-          <ul className="list">
-            {near.map((n) => {
-              const st = arr(f.now).find((x) => x.river === n.id);
-              const b = arr(data.basins).find((x) => x.id === n.id);
-              return (
-                <li key={n.id}>
-                  <b>{basinName(n.id)}</b> — <span className="num">{n.km}</span> {pick(lang, "کلومیٹر", "km")}
-                  {b?.peak ? <> · {pick(lang, "خطرہ", "risk")} {lv(b.peak.level, lang)} ({mName(b.peak.ym, lang)})</> : null}
-                  {st ? <> · {pick(lang, "قریبی گیج", "nearest gauge")}: <span className="latin">{st.station}</span> {st.cls ? `— ${pick(lang, ...(CLASS[st.cls] || CLASS.NR))}${st.trend ? ` (${pick(lang, { R: "بڑھ رہا", F: "کم ہو رہا", S: "مستحکم" }[st.trend], { R: "rising", F: "falling", S: "steady" }[st.trend])})` : ""}` : pick(lang, " — آج کی تازہ رپورٹ نہیں", " — no report for today")}</> : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {f.shortRange ? (
-          <div className={`when ${f.shortRange.flag !== "none" ? "fl-alert" : ""}`}>
-            <b>{pick(lang, "اگلے 16 دن", "Next 16 days")}:</b>{" "}
-            {f.shortRange.flag === "none"
-              ? pick(lang, `کل ${f.shortRange.totalMm} ملی میٹر بارش متوقع، کوئی بہت تیز بارش نہیں۔`, `${f.shortRange.totalMm} mm of rain expected in total, no very heavy day.`)
-              : pick(lang, `${f.shortRange.maxDay.date} کو ${Math.round(f.shortRange.maxDay.mm)} ملی میٹر تک بارش کا امکان: نشیبی کھیتوں کا پانی نکالیں، مویشی اور اناج اونچی جگہ رکھیں۔`, `Up to ${Math.round(f.shortRange.maxDay.mm)} mm possible on ${f.shortRange.maxDay.date}: drain low fields, keep animals and grain on high ground.`)}
-          </div>
-        ) : null}
-      </section>
-
-      {/* 6. What to do */}
+      {/* 3. What to do */}
       <section>
         <h3 className="sec-title">{pick(lang, "کیا کریں", "What to do")}</h3>
-        <ul className="list">
-          {(arr(ex?.actions).length ? ex.actions : defaultActions(ov?.level, lang)).map((a, i) => <li key={i}>{a}</li>)}
-        </ul>
-        {ex?.watch ? <p className="note">{ex.watch}</p> : null}
-        <p className="note">{pick(lang, "یہ موسمی پیشگوئی امکان بتاتی ہے، یقین نہیں۔ ہمیشہ NDMA، PDMA اور فلڈ فورکاسٹنگ ڈویژن کی سرکاری وارننگ پر عمل کریں۔ ایمرجنسی: ریسکیو 1122۔", "A seasonal forecast gives likelihoods, not certainty. Always follow official NDMA, PDMA and Flood Forecasting Division warnings. Emergency: Rescue 1122.")}</p>
-        <p className="hint"><a href="https://ndma.gov.pk" target="_blank" rel="noopener noreferrer">NDMA</a> · <a href="https://ffc.gov.pk" target="_blank" rel="noopener noreferrer">Federal Flood Commission</a> · <a href="https://pdma.punjab.gov.pk" target="_blank" rel="noopener noreferrer">PDMA Punjab</a></p>
+        <ul className="list">{defaultActions(farmPeak?.level, lang).map((a, i) => <li key={i}>{a}</li>)}</ul>
+        <p className="note">{pick(lang, "یہ اندازہ ہے، یقین نہیں۔ ہمیشہ NDMA، PDMA اور محکمہ موسمیات کی سرکاری وارننگ پر عمل کریں۔ ایمرجنسی: ریسکیو 1122۔", "This is an estimate, not a certainty. Always follow official NDMA, PDMA and Met Office warnings. Emergency: Rescue 1122.")}</p>
       </section>
 
-      {data.eastern?.rivers ? <Eastern e={data.eastern} near={near} lang={lang} /> : null}
-
-      {/* 7. All rivers */}
-      <section>
-        <h3 className="sec-title">{pick(lang, "پاکستان کے تمام دریا", "All rivers in Pakistan")}</h3>
-        <div className="fl-table fl-rivers" role="table">
-          <div className="fl-tr fl-th" role="row"><span>{pick(lang, "دریا", "River")}</span><span>{pick(lang, "سب سے زیادہ خطرہ", "Peak risk")}</span><span>{pick(lang, "پچھلے سال کے مقابلے", "vs last year")}</span></div>
-          {arr(data.basins).map((b) => (
-            <div key={b.id} className="fl-tr" role="row">
-              <span>{pick(lang, b.ur, b.en)}{near.some((n) => n.id === b.id) ? <em className="fl-you">{pick(lang, "آپ کے قریب", "near you")}</em> : null}</span>
-              <span className={`fl-lv lv-${levelClass(b.peak?.level)}`}>{b.peak ? `${lv(b.peak.level, lang)} · ${mName(b.peak.ym, lang)}` : "–"}</span>
-              <span>{b.condition ? pick(lang, { more_extreme: "زیادہ شدید", similar: "تقریباً ویسا", milder: "ہلکا" }[b.condition.verdict], { more_extreme: "more extreme", similar: "similar", milder: "milder" }[b.condition.verdict]) : "–"} <span className="num muted">({b.condition?.thisYear}/{b.condition?.lastYear})</span></span>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* 4. All other rivers */}
+      <details className="more fx-all">
+        <summary>{pick(lang, "پاکستان کے باقی دریا", "Other rivers in Pakistan")}</summary>
+        {otherViews.map((v) => <RiverCard key={v.id} v={v} lang={lang} />)}
+      </details>
 
       <details className="more">
-        <summary>{pick(lang, "یہ پیشگوئی کیسے بنتی ہے؟", "How is this outlook made?")}</summary>
+        <summary>{pick(lang, "یہ معلومات کہاں سے آتی ہیں؟", "Where does this come from?")}</summary>
         <ul className="list">
-          <li>{pick(lang, "بارش، گرمی اور برف: یورپی مرکز ECMWF کی 7 ماہ کی موسمی پیشگوئی (SEAS5)، ہر دریا کے بالائی علاقوں کے کئی مقامات پر۔", "Rain, heat and snow: ECMWF's 7-month seasonal forecast (SEAS5) at several points in each river's upper catchment.")}</li>
-          <li>{pick(lang, `پچھلا سال اور معمول: ERA5 موسمی ریکارڈ (پچھلے سال کے انہی مہینے، اور اس سے پہلے کے ${main?.normalYears || 5} سال کا اوسط)۔`, `Last year and normal: ERA5 weather records (the same months last year, and the average of the ${main?.normalYears || 5} years before).`)}</li>
-          <li>{pick(lang, "ڈیم اور دریا: فیڈرل فلڈ کمیشن کی روزانہ رپورٹ (تربیلا، منگلا، چشمہ: آج کی سطح بمقابلہ پچھلے سال اسی دن)۔", "Dams and rivers: the Federal Flood Commission's daily report (Tarbela, Mangla, Chashma: today's level vs the same day last year).")}</li>
-          <li>{pick(lang, "ال نینو / لا نینا: امریکی ادارے NOAA کا ONI انڈیکس۔", "El Niño / La Niña: NOAA's ONI index.")}</li>
-          <li>{pick(lang, "ہر عامل کو 0–100 نمبر (50 = عام سال) ملتا ہے؛ برفانی دریاؤں (سندھ، کابل) میں گرمی اور برف کا وزن زیادہ ہے۔ مہینے کا خطرہ = اس مہینے کا عام سیلابی خطرہ × اس سال کے حالات۔ ڈیٹا ہر 12 گھنٹے بعد خود بخود تازہ ہوتا ہے۔", "Each factor gets a 0–100 score (50 = a normal year); heat and snow weigh more for glacier-fed rivers (Indus, Kabul). Monthly risk = that month's usual flood hazard × this year's conditions. Data refreshes on its own every 12 hours.")}</li>
+          <li>{pick(lang, "بارش اور گرمی کی پیشگوئی: یورپی موسمی مرکز (ECMWF)۔", "Rain and heat forecast: the European weather centre (ECMWF).")}</li>
+          <li>{pick(lang, "تربیلا اور منگلا ڈیم: فیڈرل فلڈ کمیشن کی رپورٹ۔ بھارت کے ڈیم: بھارتی سینٹرل واٹر کمیشن کی ہفتہ وار رپورٹ۔", "Tarbela and Mangla: Federal Flood Commission report. Indian dams: India's Central Water Commission weekly report.")}</li>
+          <li>{pick(lang, `چناب، راوی اور ستلج کے لیے کسان دوست کا اپنا ماڈل، جو 1997 سے اب تک کے ریکارڈ پر جانچا گیا: پچھلے ${data.eastern?.model?.validation?.caught_flood_months ? `${data.eastern.model.validation.caught_flood_months.split("/")[1]} بڑے سیلابوں میں سے ${data.eastern.model.validation.caught_flood_months.split("/")[0]}` : "زیادہ تر بڑے سیلاب"} اس نے پہلے سے پکڑے۔`, `For the Chenab, Ravi and Sutlej, Kisan Dost's own model, checked on records since 1997: it caught ${data.eastern?.model?.validation?.caught_flood_months || "most"} past big floods in advance.`)}</li>
+          <li>{pick(lang, "خطرے کا فیصد ایک پیمانہ ہے (0 = کوئی خطرہ نہیں، 100 = بہت بڑا خطرہ)۔ یہ معلومات ہر 12 گھنٹے بعد خود تازہ ہوتی ہیں۔", "The danger % is a scale (0 = no danger, 100 = very high). It refreshes every 12 hours.")}</li>
         </ul>
-        {data.status?.errors?.length ? <p className="hint">{pick(lang, "کچھ ذرائع اس وقت دستیاب نہیں تھے:", "Some sources were unavailable:")} <span className="latin">{data.status.errors.join("; ")}</span></p> : null}
       </details>
-    </div>
-  );
-}
-
-// Chenab, Ravi, Sutlej: water from India. Trained model + GloFAS flow forecast + Indian dams (CWC).
-const MON_UR = ["جنوری", "فروری", "مارچ", "اپریل", "مئی", "جون", "جولائی", "اگست", "ستمبر", "اکتوبر", "نومبر", "دسمبر"];
-const MON_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-function Eastern({ e, near, lang }) {
-  const v = e.model?.validation || {};
-  const levelClass2 = (l) => levelClass(l === "medium" ? "moderate" : l);
-  const lvTxt = { high: pick(lang, "زیادہ خطرہ", "High"), medium: pick(lang, "درمیانہ خطرہ", "Medium"), low: pick(lang, "کم خطرہ", "Low"), unknown: "–" };
-  const order = [...e.rivers].sort((a, b) => (near.some((n) => n.id === b.id) ? 1 : 0) - (near.some((n) => n.id === a.id) ? 1 : 0));
-  return (
-    <section className="eastern">
-      <h3 className="sec-title">{pick(lang, "بھارت سے آنے والا پانی: چناب، راوی، ستلج", "Water from India: Chenab, Ravi, Sutlej")}</h3>
-      <p className="hint" style={{ marginTop: 0 }}>{pick(lang,
-        "کسان دوست کا اپنا تربیت یافتہ ماڈل: بھارت میں ان دریاؤں کے بالائی علاقوں کی بارش اور گرمی کی پیشگوئی، اور دریا کے موجودہ بہاؤ سے، ہر مہینے سرحد پر سیلاب کا امکان۔",
-        "Kisan Dost's own trained model: from the rain and heat forecast over these rivers' upper catchments in India and the river's flow now, the chance of a flood at the border each month.")}</p>
-      {order.map((r) => (
-        <div key={r.id} className={`er lv-${levelClass2(r.level)}`}>
-          <div className="er-head">
-            <b>{pick(lang, r.ur, r.en)}{near.some((n) => n.id === r.id) ? <em className="fl-you">{pick(lang, "آپ کے قریب", "near you")}</em> : null}</b>
-            <span className={`fl-lv lv-${levelClass2(r.level)}`}>{lvTxt[r.level]}</span>
-          </div>
-          <div className="er-sub">{pick(lang, `سرحدی اسٹیشن: ${r.station_ur}`, `Border station: ${r.en === "Sutlej" ? "Ganda Singh Wala" : r.en === "Ravi" ? "Jassar" : "Marala"}`)}{r.flowNowPctOfNormal != null ? ` · ${pick(lang, "آج کا بہاؤ معمول کا", "flow now")} ${r.flowNowPctOfNormal}%` : ""}</div>
-          <div className="er-months">
-            {r.months.map((m) => {
-              const mo = +m.month.slice(5, 7) - 1;
-              return (
-                <div key={m.month} className="er-m" title={`${m.p}%`}>
-                  <div className="er-bar"><i style={{ height: `${Math.max(4, m.p)}%` }} className={m.p >= 75 ? "hi" : m.p >= 50 ? "mid" : ""} /></div>
-                  <b className="num">{m.p}%</b>
-                  <span>{pick(lang, MON_UR[mo], MON_EN[mo])}</span>
-                  <small className="num">{m.rainPct > 0 ? "+" : ""}{m.rainPct}%</small>
-                </div>
-              );
-            })}
-          </div>
-          {r.dams?.length ? (
-            <div className="er-dams">
-              {r.dams.map((d) => (
-                <div key={d.id} className="er-dam">
-                  <b>{pick(lang, d.ur, d.en)}</b>
-                  <span><span className="num">{Math.round(d.pct)}%</span> {pick(lang, "بھرا", "full")}{d.lastYear ? <> · {pick(lang, "پچھلے سال", "last year")} <span className="num">{Math.round(d.lastYear.pct)}%</span></> : null}{d.normal != null ? <> · {pick(lang, "معمول", "normal")} <span className="num">{Math.round(d.normal)}%</span></> : null}</span>
-                  <small>{pick(lang, `چھوڑا گیا پانی ${d.lagDays} دن میں پاکستان پہنچتا ہے`, `released water reaches Pakistan in ${d.lagDays} days`)} · {new Date(d.date + "T00:00").toLocaleDateString(lang === "ur" ? "ur-PK" : "en-GB", { day: "numeric", month: "short" })}{d.snapshot ? pick(lang, " (محفوظ شدہ)", " (saved)") : ""}</small>
-                </div>
-              ))}
-            </div>
-          ) : <p className="hint">{pick(lang, "چناب پر بھارتی ڈیم (سلال، بگلیہار) پانی ذخیرہ نہیں کرتے؛ یہاں بالائی علاقوں کی بارش اور برف فیصلہ کن ہے۔", "India's Chenab dams (Salal, Baglihar) are run-of-river with little storage; upstream rain and snow decide.")}</p>}
-        </div>
-      ))}
-      <p className="hint">{pick(lang,
-        `ماڈل کی جانچ (1997 تا 2026، ہر سال کو الگ رکھ کر): AUC ${v.auc}، سیلابی مہینے پکڑے ${v.caught_flood_months}، غلط الارم ${Math.round((v.false_alarm_rate || 0) * 100)}%۔ نیچے کے فیصد: اس مہینے کی بارش معمول سے کم یا زیادہ۔ بھارتی ڈیم: سینٹرل واٹر کمیشن (CWC) کی ہفتہ وار رپورٹ۔`,
-        `Model check (1997–2026, each year held out): AUC ${v.auc}, flood months caught ${v.caught_flood_months}, false alarms ${Math.round((v.false_alarm_rate || 0) * 100)}%. Small % under each month: rain vs normal. Indian dams: Central Water Commission (CWC) weekly bulletin.`)}</p>
-    </section>
-  );
-}
-
-function Bar({ label, v, muted }) {
-  return (
-    <div className={`fl-bar ${muted ? "muted" : ""}`}>
-      <span>{label}</span>
-      <span className="fl-track"><span style={{ width: `${Math.max(2, v ?? 0)}%` }} /><i style={{ insetInlineStart: "50%" }} /></span>
-      <b className="num">{v ?? "–"}</b>
-    </div>
-  );
-}
-
-function Row({ name, a, b, hint }) {
-  return (
-    <div className="fl-tr" role="row">
-      <span>{name}{hint ? <small>{hint}</small> : null}</span>
-      <span className="num">{a}</span>
-      <span className="num muted">{b}</span>
     </div>
   );
 }

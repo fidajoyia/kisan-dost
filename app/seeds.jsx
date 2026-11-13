@@ -28,28 +28,96 @@ function sowing(crop, mean, lang) {
   return { state, days, win };
 }
 
-const WHY = {
-  yield_pct: (v, l) => pick(l, `سرکاری تجربات میں چیک اقسام سے ${v}% زیادہ پیداوار`, `${v}% more yield than check varieties in official trials`),
-  yield_higher: (_, l) => pick(l, "سرکاری تجربات میں چیک اقسام سے زیادہ پیداوار", "higher yield than check varieties in official trials"),
-  yield_high: (_, l) => pick(l, "زیادہ پیداوار کی صلاحیت", "high yield potential"),
-  yield_same: (_, l) => pick(l, "پیداوار چیک اقسام کے برابر", "yield equal to check varieties"),
-  resistant: (v, l) => pick(l, `ان بیماریوں کے خلاف مزاحم: ${v.join("، ")}`, `resistant to ${v.join(", ")}`),
-  needs_cold: (v, l) => pick(l, `سرد سردی مانگنے والی (ونٹر) قسم؛ آپ کی سردیوں کا اوسط ${v}°C ہے، اس لیے کم موزوں`, `winter type needs a cold winter; yours averages ${v}°C, so less suited`),
-  cold_ok: (v, l) => pick(l, `ونٹر قسم؛ آپ کے علاقے کی سردی (${v}°C) کافی ہے`, `winter type; your winter (${v}°C) is cold enough`),
-  spring_type: (_, l) => pick(l, "بہاریہ (اسپرنگ) قسم: ہلکی سردیوں کے لیے موزوں", "spring type: suits mild winters"),
-  salt: (_, l) => pick(l, "نمکین (کلر) زمین برداشت کرتی ہے", "tolerates salty (kallar) land"),
-  flood: (_, l) => pick(l, "کھڑا پانی / سیم برداشت کرتی ہے", "tolerates standing water / waterlogging"),
-  drought: (_, l) => pick(l, "کم پانی / خشکی میں اچھی پیداوار", "yields well with little water / drought"),
-  sand: (_, l) => pick(l, "ریتلی زمین کے لیے تیار کی گئی", "bred for sandy soils"),
-  heat: (_, l) => pick(l, "گرمی برداشت کرتی ہے", "heat tolerant"),
-  early_escape: (_, l) => pick(l, "جلد پکنے والی: آخری گرمی سے پہلے تیار", "early maturing: ready before the late heat"),
-  early: (_, l) => pick(l, "جلد پکنے والی", "early maturing"),
-  quality: (v, l) => pick(l, `معیار: ${v.map((q) => ({ "baking quality": "روٹی / بیکنگ", "fibre quality": "ریشہ", protein: "پروٹین", oil: "تیل", "sugar content": "مٹھاس", malting: "مالٹنگ" }[q] || q)).join("، ")}`, `quality: ${v.join(", ")}`),
+// Everything a farmer reads here is in Urdu and comes only from the variety's official registration.
+// A fact the registration does not state is shown as "not stated", never guessed.
+const NA = (l) => pick(l, "رجسٹریشن میں درج نہیں", "not stated in the registration");
+const DISEASE_UR = [
+  [/stripe rust|yellow rust/i, "پیلی کنگی"], [/leaf rust|brown rust/i, "بھوری کنگی"], [/stem rust|black rust/i, "کالی کنگی"],
+  [/powdery mildew/i, "سفوفی پھپھوندی"], [/downy mildew/i, "روئیں دار پھپھوندی"], [/fusarium head blight|head scab|\bscab\b/i, "سٹے کا جھلساؤ (فیوزیریم)"],
+  [/septoria|leaf blotch/i, "پتوں کے دھبے (سیپٹوریا)"], [/tan spot/i, "بھورے دھبے (ٹین اسپاٹ)"], [/glume blotch/i, "سٹے کے دھبے"],
+  [/soil-?borne wheat mosaic/i, "مٹی سے پھیلنے والا موزیک وائرس"], [/wheat streak mosaic/i, "گندم کا دھاری دار موزیک وائرس"], [/barley yellow dwarf/i, "پیلا بونا وائرس"],
+  [/hessian fly/i, "ہیسین مکھی"], [/greenbug|aphid/i, "سست تیلا"], [/blast/i, "بلاسٹ (جھلساؤ)"], [/sheath blight/i, "تنے کا جھلساؤ"],
+  [/bacterial (leaf )?blight|bacterial panicle/i, "بیکٹیریائی جھلساؤ"], [/straighthead/i, "سٹریٹ ہیڈ"], [/leaf curl/i, "پتہ مروڑ وائرس"],
+  [/bacterial blight/i, "بیکٹیریائی جھلساؤ"], [/fusarium wilt/i, "اکھیڑا (فیوزیریم)"], [/verticillium/i, "اکھیڑا (ورٹیسیلیم)"], [/nematode/i, "نیماٹوڈ (کیڑے)"],
+  [/root[- ]knot/i, "جڑ کی گانٹھ"], [/smut/i, "کانگیاری"], [/red rot/i, "رتا روگ (سرخ سڑن)"], [/mosaic|virus/i, "وائرس"], [/late blight/i, "پچھیتا جھلساؤ"],
+  [/early blight/i, "اگیتا جھلساؤ"], [/borer/i, "گڑوواں سنڈی"], [/rot/i, "سڑن"], [/blight/i, "جھلساؤ"], [/rust/i, "کنگی"], [/spot/i, "دھبے"],
+];
+const diseaseUr = (xs, l) => {
+  const out = [];
+  for (const raw of arr(xs)) {
+    const x = String(raw).replace(/\(.*$/, "").replace(/based on.*$/i, "").replace(/prevailing races of/i, "").trim();
+    if (!x) continue;
+    const hit = DISEASE_UR.find(([re]) => re.test(x));
+    const t = l === "ur" ? (hit ? hit[1] : x) : x;
+    if (!out.includes(t)) out.push(t);
+  }
+  return out;
 };
-const why = (w, lang) => WHY[w.k]?.(w.v, lang) || null;
-const instLabel = (c, lang) => arr(c.institutions).map((i) => `#${i.rank} ${pick(lang, i.name_ur, i.name_en)}`).join("، ");
-const yieldText = (c, lang) => c.yieldPct != null ? `${c.yieldPct > 0 ? "+" : ""}${c.yieldPct}%` : c.yieldClaim === "higher" ? pick(lang, "زیادہ", "higher") : c.yieldClaim === "high" ? pick(lang, "اچھی", "high") : c.yieldClaim === "comparable" ? pick(lang, "برابر", "equal") : "–";
-const matText = (m, lang) => ({ early: pick(lang, "جلد", "early"), medium: pick(lang, "درمیانی", "medium"), late: pick(lang, "دیر", "late") }[m] || "–");
+const TYPE_UR = { "hard red winter": "سخت سرخ دانہ", "soft red winter": "نرم سرخ دانہ", "hard red spring": "سخت سرخ دانہ", "hard white winter": "سخت سفید دانہ", "soft white winter": "نرم سفید دانہ",
+  "hard white spring": "سخت سفید دانہ", "soft white spring": "نرم سفید دانہ", "two-row": "دو قطاری", "six-row": "چھ قطاری", upland: "عام (اپ لینڈ) کپاس", pima: "پیما (لمبا ریشہ)",
+  hybrid: "ہائبرڈ", inbred: "عام قسم (ہائبرڈ نہیں)", "long-grain": "لمبا دانہ", "medium-grain": "درمیانہ دانہ", "short-grain": "چھوٹا دانہ", aromatic: "خوشبودار", jasmine: "جیسمین (خوشبودار)" };
+const QUALITY_UR = { "baking quality": "روٹی / بیکنگ کے لیے اچھی", "fibre quality": "اچھا ریشہ", protein: "زیادہ پروٹین", oil: "زیادہ تیل", "sugar content": "زیادہ مٹھاس", malting: "مالٹنگ" };
+const instLabel = (c, lang) => arr(c.institutions).map((i) => pick(lang, i.name_ur, i.name_en)).join("، ");
+
+// one plain line on weather: was it proven in weather like yours?
+function climateLine(c, l) {
+  const k = c.climate;
+  if (!k) return { cls: "na", short: pick(l, "معلوم نہیں", "unknown"), long: pick(l, "رجسٹریشن میں نہیں لکھا کہ یہ کس علاقے میں آزمایا گیا، اس لیے آپ کے موسم سے موازنہ ممکن نہیں۔", "The registration does not say where it was tested, so it cannot be compared with your weather.") };
+  const d = Math.abs(k.warmer), word = k.warmer > 0 ? pick(l, "گرم", "warmer") : pick(l, "ٹھنڈا", "colder");
+  const diff = d < 1 ? pick(l, "تقریباً ایک جیسا", "about the same") : pick(l, `آپ کا علاقہ تقریباً ${Math.round(d)}° ${word}`, `your area is about ${Math.round(d)}° ${word}`);
+  const where = pick(l, k.ur, k.en);
+  if (k.sim >= 70) return { cls: "g", short: pick(l, "آپ جیسا موسم", "weather like yours"), long: pick(l, `${where} میں آزمایا گیا، جہاں فصل کے مہینوں کا موسم آپ کے علاقے جیسا ہے (${diff})۔`, `Tested in ${where}, where the crop months' weather is like yours (${diff}).`) };
+  if (k.sim >= 40) return { cls: "m", short: pick(l, "موسم میں فرق", "some difference"), long: pick(l, `${where} میں آزمایا گیا؛ وہاں کا موسم آپ سے مختلف ہے (${diff})۔ آپ کے کھیت میں نتیجہ مختلف ہو سکتا ہے۔`, `Tested in ${where}; its weather differs from yours (${diff}). Results on your farm may differ.`) };
+  return { cls: "b", short: pick(l, "موسم بہت مختلف", "very different"), long: pick(l, `${where} میں آزمایا گیا؛ وہاں کا موسم آپ سے بہت مختلف ہے (${diff})۔ آپ کے علاقے کے لیے خطرہ ہے۔`, `Tested in ${where}; its weather is very different from yours (${diff}). Risky for your area.`) };
+}
+function yieldLine(c, l) {
+  if (c.yieldPct != null && c.yieldPct > 0) return { cls: "g", t: pick(l, `سرکاری تجربات میں پرانی (چیک) اقسام سے ${c.yieldPct}٪ زیادہ`, `${c.yieldPct}% more than the check varieties in official trials`) };
+  if (c.yieldPct != null) return { cls: "m", t: pick(l, "پرانی اقسام کے برابر یا کم", "equal to or below the check varieties") };
+  if (c.yieldClaim === "higher") return { cls: "g", t: pick(l, "پرانی اقسام سے زیادہ (کتنی زیادہ، یہ درج نہیں)", "more than the check varieties (amount not stated)") };
+  if (c.yieldClaim === "high") return { cls: "m", t: pick(l, "اچھی پیداوار لکھی ہے، مگر پرانی اقسام سے موازنہ درج نہیں", "described as high-yielding, but no comparison with check varieties") };
+  if (c.yieldClaim === "comparable") return { cls: "m", t: pick(l, "پرانی اقسام کے برابر", "equal to the check varieties") };
+  return { cls: "na", t: NA(l) };
+}
+// t/ha → maunds (40 kg) per acre: 1 t/ha = 1000 kg / 2.471 acres / 40 kg
+const maunds = (note) => { const m = String(note || "").match(/([\d.]+)\s*t\/ha/); return m ? Math.round((+m[1] * 1000) / 2.471 / 40) : null; };
+
+function Facts({ c, lang: l }) {
+  const cl = climateLine(c, l), y = yieldLine(c, l);
+  const res = diseaseUr(c.resistant, l), mod = diseaseUr(c.moderate, l).filter((x) => !res.includes(x));
+  const tol = [c.tol?.heat && pick(l, "گرمی", "heat"), c.tol?.drought && pick(l, "کم پانی / خشکی", "drought"), c.tol?.salt && pick(l, "کلر (نمکین زمین)", "salt"), c.tol?.flood && pick(l, "کھڑا پانی", "waterlogging"), c.tol?.cold && pick(l, "کورا / سخت سردی", "frost")].filter(Boolean);
+  const mat = { early: pick(l, "جلد پکنے والی", "early"), medium: pick(l, "درمیانی", "medium"), late: pick(l, "دیر سے پکنے والی", "late") }[c.maturity];
+  const habit = c.habit === "winter" ? pick(l, "ونٹر (سخت سردی مانگتی ہے)", "winter type (needs a cold winter)") : c.habit === "spring" ? pick(l, "اسپرنگ (ہلکی سردی میں ٹھیک)", "spring type (fine in mild winters)") : null;
+  const type = [habit, c.type ? pick(l, TYPE_UR[c.type.toLowerCase()] || c.type, c.type) : null].filter(Boolean).join("، ");
+  const mds = maunds(c.yieldNote);
+  // "sucrose" in a wheat registration is a flour test, not sweetness
+  const qual = arr(c.quality).filter((q) => q !== "sugar content" || ["sugarcane", "sugarbeet", "sorghum"].includes(c.crop));
+  const rows = [
+    [pick(l, "موسم کا میل", "Weather match"), cl.long, cl.cls],
+    [pick(l, "پیداوار", "Yield"), y.t + (mds ? pick(l, ` · تجربات میں تقریباً ${mds} من فی ایکڑ`, ` · about ${mds} maunds/acre in trials`) : ""), y.cls],
+    [pick(l, "بیماری سے بچاؤ", "Disease resistance"), res.length ? res.join("، ") + (mod.length ? pick(l, ` · کچھ حد تک: ${mod.join("، ")}`, ` · partly: ${mod.join(", ")}`) : "") : mod.length ? pick(l, `کچھ حد تک: ${mod.join("، ")}`, `partly: ${mod.join(", ")}`) : NA(l), res.length ? "g" : "na"],
+    [pick(l, "پکنے کا وقت", "Maturity"), mat ? mat + (c.daysEarlier ? pick(l, ` (پرانی اقسام سے ${c.daysEarlier} دن پہلے)`, ` (${c.daysEarlier} days earlier than checks)`) : "") : NA(l), mat ? "" : "na"],
+    [pick(l, "کیا برداشت کرتی ہے", "Tolerates"), tol.length ? tol.join("، ") : NA(l), tol.length ? "" : "na"],
+    [pick(l, "قسم", "Type"), type || NA(l), type ? "" : "na"],
+    ...(qual.length ? [[pick(l, "معیار", "Quality"), qual.map((q) => pick(l, QUALITY_UR[q] || q, q)).join("، "), ""]] : []),
+    [pick(l, "جاری ہونے کا سال", "Released"), c.released || c.year || NA(l), ""],
+  ];
+  return (
+    <dl className="sf-facts">
+      {rows.map(([k, v, cls]) => <div key={k} className={cls ? `f-${cls}` : ""}><dt>{k}</dt><dd>{v}</dd></div>)}
+    </dl>
+  );
+}
+// why this one is not recommended for this farm (only facts)
+function cautions(c, l) {
+  const out = [];
+  if (c.why?.some((w) => w.k === "needs_cold")) out.push(pick(l, "یہ قسم سخت سردی مانگتی ہے؛ آپ کے علاقے کی سردی اس کے لیے کافی نہیں۔", "Needs a cold winter; your winter is not cold enough."));
+  if (c.climate && c.climate.sim < 70) out.push(pick(l, "یہ آپ جیسے موسم میں نہیں آزمائی گئی۔", "Not tested in weather like yours."));
+  if (!c.climate) out.push(pick(l, "آزمائش کی جگہ معلوم نہیں۔", "Test location unknown."));
+  if (!(c.yieldPct > 0 || c.yieldClaim === "higher")) out.push(pick(l, "پرانی اقسام سے زیادہ پیداوار ثابت نہیں۔", "No proven yield gain over check varieties."));
+  if (c.why?.some((w) => w.k === "sem_unknown")) out.push(pick(l, "سیم / کلر برداشت کرنے کا ذکر نہیں۔", "No stated tolerance for waterlogging / salt."));
+  if (c.why?.some((w) => w.k === "rait_unknown")) out.push(pick(l, "کم پانی میں چلنے کا ذکر نہیں۔", "No stated drought tolerance."));
+  return out;
+}
 
 export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport }) {
   const dir = lang === "ur" ? "rtl" : "ltr";
@@ -76,7 +144,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
   const choose = (id) => { setCrop(id); LS.set("kd-seed-crop", id); };
   const cropDef = CROPS.find((c) => c.id === crop);
   const sow = cropDef ? sowing(cropDef, temps?.mean14, lang) : null;
-  const best = data?.best, list = arr(data?.candidates);
+  const best = data?.best || null, list = arr(data?.candidates);
   const shown = CROPS.filter((c) => !counts || counts[c.id] > 0 || c.id === crop);
 
   return (
@@ -115,57 +183,58 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
       </section>
 
       {!coords ? <p className="status">{pick(lang, "لوکیشن ملتے ہی آپ کے علاقے کے مطابق بیج دکھائے جائیں گے۔", "Seeds for your area appear once your location is available.")}</p>
-        : state === "loading" && !data ? <div className="thinking"><div className="spin" /><span>{pick(lang, "دنیا کے بہترین اداروں کے بیجوں کا موازنہ ہو رہا ہے… (پہلی بار 20–60 سیکنڈ)", "Comparing seeds from the world's top institutions… (first time 20–60 s)")}</span></div>
-        : state === "error" ? <p className="status err">{pick(lang, "ابھی بیج کا ڈیٹا نہیں مل سکا۔", "Seed data could not be loaded right now.")} {data?.error ? <span className="latin muted">({data.error})</span> : null}</p>
-        : !best ? <p className="status">{pick(lang, "اس فصل کے لیے ابھی کوئی قسم نہیں ملی۔ سسٹم ہر ہفتے نئی اقسام خود تلاش کرتا ہے۔", "No variety found for this crop yet. The system searches for new ones every week.")}</p>
+        : state === "loading" && !data ? <div className="thinking"><div className="spin" /><span>{pick(lang, "بیجوں کا آپ کے موسم سے موازنہ ہو رہا ہے…", "Comparing seeds with your weather…")}</span></div>
+        : state === "error" ? <p className="status err">{pick(lang, "ابھی بیج کی معلومات نہیں مل سکیں۔ تھوڑی دیر بعد دوبارہ کھولیں۔", "Seed information could not be loaded right now. Try again shortly.")}</p>
+        : !list.length ? <p className="status">{pick(lang, "اس فصل کی کوئی رجسٹرڈ قسم ابھی ہمارے پاس نہیں۔ اپنے علاقے کی منظور شدہ قسم ہی کاشت کریں۔", "We have no registered variety for this crop yet. Sow your area's approved variety.")}</p>
         : (
           <>
-            <section className="sf-best">
-              <div className="sf-best-head">
-                <span className="sf-badge">{pick(lang, "آپ کے لیے بہترین بیج", "Best seed for you")}</span>
-                <span className="sf-score num">{best.score}<small>/100</small></span>
-              </div>
-              <h3><span className="latin">{best.name}</span> <small>{pick(lang, cropDef.ur, cropDef.en)}{best.type ? ` · ${best.type}` : ""}</small></h3>
-              <p className="sf-inst">{instLabel(best, lang)}{best.released ? ` · ${best.released}` : ""}</p>
-              <ul className="sf-why">
-                {arr(best.why).map((w, i) => { const t = why(w, lang); return t ? <li key={i} className={w.good ? "g" : "b"}>{t}</li> : null; })}
-              </ul>
-              <Where c={best} lang={lang} goImport={goImport} />
-            </section>
+            {best ? (
+              <section className="sf-best">
+                <span className="sf-badge">{pick(lang, "آپ کے موسم کے لیے موزوں بیج", "Suits your weather")}</span>
+                <h3><span className="latin">{best.name}</span> <small>{pick(lang, cropDef.ur, cropDef.en)}</small></h3>
+                <p className="sf-inst">{instLabel(best, lang)}</p>
+                <Facts c={best} lang={lang} />
+                <p className="note">{pick(lang, "نقصان سے بچنے کے لیے: پہلے سال صرف ایک کنال / ایک ایکڑ میں اپنی پرانی قسم کے ساتھ لگا کر دیکھیں۔ اچھا نتیجہ ملے تو اگلے سال زیادہ رقبے پر لگائیں۔", "To avoid any loss: in the first year sow it on one kanal / acre next to your usual variety. Expand only after a good result.")}</p>
+                <Where c={best} lang={lang} goImport={goImport} />
+              </section>
+            ) : (
+              <section className="sf-none">
+                <b>{pick(lang, "آپ کے علاقے کے لیے ابھی کوئی محفوظ غیر ملکی بیج نہیں ملا", "No safe foreign seed found for your area yet")}</b>
+                <p>{pick(lang,
+                  `ہم نے ${data.total || list.length} اقسام دیکھیں۔ کوئی بھی ایسی نہیں جو آپ جیسے موسم میں آزمائی گئی ہو اور سرکاری تجربات میں پرانی اقسام سے زیادہ پیداوار ثابت کر چکی ہو۔ اندازے سے سفارش کر کے ہم آپ کا نقصان نہیں کروانا چاہتے۔`,
+                  `We checked ${data.total || list.length} varieties. None was tested in weather like yours and also proved more yield than the check varieties in official trials. We will not guess and risk your crop.`)}</p>
+                <p>{pick(lang, "اس سال اپنے علاقے کے لیے منظور شدہ قسم ہی کاشت کریں۔ صحیح قسم کے لیے محکمہ زراعت (توسیع) کے دفتر یا ایوب زرعی تحقیقاتی ادارہ فیصل آباد سے پوچھیں۔", "This year sow a variety approved for your area. Ask the Agriculture (Extension) office or the Ayub Agricultural Research Institute, Faisalabad.")}</p>
+              </section>
+            )}
 
             <section>
-              <h3 className="sec-title">{pick(lang, `موازنہ: ${list.length} اقسام`, `Comparison: ${list.length} varieties`)} <small>{pick(lang, cropDef.ur, cropDef.en)}</small></h3>
-              <div className="sf-table" role="table">
-                <div className="sf-tr sf-th" role="row">
-                  <span>#</span><span>{pick(lang, "بیج / ادارہ", "Seed / institution")}</span><span>{pick(lang, "پیداوار", "Yield")}</span>
-                  <span>{pick(lang, "بیماری سے بچاؤ", "Resistance")}</span><span>{pick(lang, "آپ کے لیے موزوں", "Fit")}</span><span>{pick(lang, "اسکور", "Score")}</span>
-                </div>
-                {list.map((c, i) => (
-                  <div key={c.id} className="sf-row">
-                    <button type="button" className="sf-tr" role="row" aria-expanded={open === c.id} onClick={() => setOpen(open === c.id ? null : c.id)}>
-                      <span className="num">{i + 1}</span>
-                      <span><b className="latin">{c.name}</b><small>{arr(c.institutions).map((x) => `#${x.rank} ${x.short}`).join(", ")} · {c.released || c.year || "–"} · {matText(c.maturity, lang)}</small></span>
-                      <span className="num">{yieldText(c, lang)}</span>
-                      <span className="num">{(c.resistant?.length || 0) + (c.moderate?.length || 0) || "–"}</span>
-                      <span><i className="sf-bar"><i style={{ width: `${c.parts?.fit}%` }} /></i></span>
-                      <span className="num sf-s">{c.score}</span>
-                    </button>
-                    {open === c.id ? (
-                      <div className="sf-detail">
-                        <ul className="sf-why">{arr(c.why).map((w, k) => { const t = why(w, lang); return t ? <li key={k} className={w.good ? "g" : "b"}>{t}</li> : null; })}</ul>
-                        {c.moderate?.length ? <p className="hint">{pick(lang, "درمیانی مزاحمت", "Moderate resistance")}: <span className="latin">{c.moderate.join(", ")}</span></p> : null}
-                        {c.yieldNote ? <p className="hint">{pick(lang, "تجرباتی پیداوار", "Trial yield")}: <span className="num">{c.yieldNote}</span></p> : null}
-                        {c.adapted ? <p className="hint">{pick(lang, "کس علاقے کے لیے", "Bred for")}: <span className="latin">{c.adapted}</span></p> : null}
-                        <Where c={c} lang={lang} goImport={goImport} />
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
+              <h3 className="sec-title">{best ? pick(lang, "دوسری اقسام", "Other varieties") : pick(lang, "غیر ملکی اقسام (صرف تجربے کے لیے)", "Foreign varieties (for trial only)")} <small>{pick(lang, cropDef.ur, cropDef.en)}</small></h3>
+              <div className="sf-cards">
+                {list.filter((c) => c !== best && c.id !== best?.id).map((c) => {
+                  const cl = climateLine(c, lang), y = yieldLine(c, lang), res = diseaseUr(c.resistant, lang), warn = cautions(c, lang);
+                  return (
+                    <div key={c.id} className="sf-card">
+                      <button type="button" className="sf-card-h" aria-expanded={open === c.id} onClick={() => setOpen(open === c.id ? null : c.id)}>
+                        <span><b className="latin">{c.name}</b><small>{instLabel(c, lang)}</small></span>
+                        <span className={`sf-pill p-${cl.cls}`}>{cl.short}</span>
+                      </button>
+                      <p className="sf-card-l"><span className={`p-${y.cls}`}>{pick(lang, "پیداوار", "Yield")}: {y.t}</span>{res.length ? <span>{pick(lang, "بچاؤ", "Resists")}: {res.slice(0, 3).join("، ")}</span> : null}</p>
+                      {warn.length ? <p className="sf-warn">{warn[0]}</p> : null}
+                      {open === c.id ? (
+                        <div className="sf-detail">
+                          <Facts c={c} lang={lang} />
+                          {warn.length > 1 ? <ul className="sf-why">{warn.map((w, i) => <li key={i} className="b">{w}</li>)}</ul> : null}
+                          <Where c={c} lang={lang} goImport={goImport} />
+                        </div>
+                      ) : <button type="button" className="linkbtn" onClick={() => setOpen(c.id)}>{pick(lang, "پوری تفصیل", "Full details")}</button>}
+                    </div>
+                  );
+                })}
               </div>
             </section>
             <p className="hint">{pick(lang,
-              `ڈیٹا: اداروں کی سرکاری اقسام کی رجسٹریشن رپورٹیں (${data.sources.registrations})${data.sources.web ? ` اور خودکار ویب تحقیق (${data.sources.web})` : ""}۔ ہر ہفتے خود بخود نئی اقسام شامل ہوتی ہیں۔ آخری اپڈیٹ: ${new Date(data.researched || data.updated).toLocaleDateString("ur-PK")}`,
-              `Data: the institutions' official variety registrations (${data.sources.registrations})${data.sources.web ? ` and automatic web research (${data.sources.web})` : ""}. New varieties are added automatically every week. Last update: ${new Date(data.researched || data.updated).toLocaleDateString("en-GB")}`)}</p>
+              `یہ معلومات دنیا کے بڑے زرعی اداروں کی سرکاری اقسام کی رجسٹریشن سے لی گئی ہیں۔ موسم کا موازنہ: ناسا کا 20 سالہ موسمی ریکارڈ، فصل کے مہینوں میں۔ ہر ہفتے نئی اقسام خود شامل ہوتی ہیں۔ آخری اپڈیٹ: ${new Date(data.researched || data.updated).toLocaleDateString("ur-PK")}`,
+              `From the official variety registrations of the world's leading agricultural institutions. Weather comparison: NASA's 20-year climate record over the crop months. New varieties are added every week. Last update: ${new Date(data.researched || data.updated).toLocaleDateString("en-GB")}`)}</p>
           </>
         )}
     </div>
@@ -179,10 +248,10 @@ function Where({ c, lang, goImport }) {
       <ul>
         {c.seller?.name ? <li>{pick(lang, "بیج / لائسنس", "Seed / licence")}: {c.seller.url ? <a href={c.seller.url} target="_blank" rel="noopener noreferrer" className="latin">{c.seller.name} ↗</a> : <span className="latin">{c.seller.name}</span>}</li> : null}
         {c.pakistan === "registered" || c.pakistan === "sold"
-          ? <li className="g">{pick(lang, "پاکستان میں دستیاب", "Available in Pakistan")}{c.pakistanNote ? `: ${c.pakistanNote}` : ""}</li>
+          ? <li className="g">{pick(lang, "پاکستان میں دستیاب", "Available in Pakistan")}{lang !== "ur" && c.pakistanNote ? `: ${c.pakistanNote}` : ""}</li>
           : <li>{pick(lang, "پاکستان میں منگوانا ہو تو: ", "To bring it to Pakistan: ")}<button type="button" className="linkbtn" onClick={goImport}>{pick(lang, "درآمد کا طریقہ", "import steps")}</button></li>}
-        {c.pi ? <li>{pick(lang, "تجربے کے لیے نمونہ", "Trial sample")}: <a href="https://npgsweb.ars-grin.gov/gringlobal/search" target="_blank" rel="noopener noreferrer" className="latin">USDA GRIN · PI {c.pi} ↗</a></li> : null}
-        <li><a href={c.link} target="_blank" rel="noopener noreferrer">{c.source === "web" ? pick(lang, "ماخذ", "Source") : pick(lang, "سرکاری رجسٹریشن رپورٹ (ٹرائل ڈیٹا)", "Official registration report (trial data)")} ↗</a></li>
+        {c.pi ? <li>{pick(lang, "تجربے کے لیے تھوڑا بیج (امریکی سرکاری جین بینک)", "Small trial sample (US government gene bank)")}: <a href="https://npgsweb.ars-grin.gov/gringlobal/search" target="_blank" rel="noopener noreferrer" className="latin">PI {c.pi} ↗</a></li> : null}
+        <li><a href={c.link} target="_blank" rel="noopener noreferrer">{pick(lang, "اصل رجسٹریشن (انگریزی)", "Original registration (English)")} ↗</a></li>
       </ul>
     </div>
   );
