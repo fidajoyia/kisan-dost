@@ -51,6 +51,14 @@ Reproduce: `scripts/leaf-model/fetch.py` → `train.py extract` → `extract_fli
 
 Area disease warnings (`lib/disease-rules.js`) are rule based on the live 16-day forecast and the Punjab / Sindh crop calendar; they need no AI either.
 
+## Water from India: Chenab, Ravi, Sutlej (trained flood model)
+
+The flood tab has a section for the three eastern rivers whose water comes from India.
+
+- **Our trained model** (`data/flood-model.json`, scripts in `scripts/flood-model/`): logistic regression that gives, for each of the next 7 months, the chance that the river's peak at the border station (Marala, Jassar, Ganda Singh Wala) reaches its upper-quartile annual peak (about a 1-in-4-year flood). Inputs: rain this month and last month over the Indian catchment (ratio to normal), temperature anomaly, the river's flow last month, season. Trained on 1997–2026 GloFAS river discharge (Copernicus) and ERA5 weather; at run time the inputs come from the ECMWF SEAS5 seasonal forecast and the GloFAS 7-month flow forecast.
+- **Validation (each year held out):** AUC 0.92 (season alone: 0.80); 24 of 29 flood months caught at 50%; 12% false alarms. It gave the Aug–Sep 2025 floods 92–99% without seeing 2025.
+- **Indian dams (live):** Bhakra (Gobind Sagar) and Pong on the Sutlej / Beas, Ranjit Sagar (Thein) on the Ravi: % full now, same week last year, monthly normal, from India's Central Water Commission weekly bulletin (read through reservoirs.earth; snapshot fallback in `data/india-dams.json`, refresh with `node scripts/update-india-dams.mjs`). The dam levels are not a model input (CWC series only since 2023); a dam above 90% in the monsoon raises the river's level one step. The Chenab dams in India are run-of-river with little storage.
+
 ## Run
 
 ```bash

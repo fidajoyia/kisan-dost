@@ -339,3 +339,18 @@ a{color:var(--leaf)}
 .spray-note.wx{border-inline-start:4px solid var(--nehar);padding-inline-start:10px}
 .safety{margin:10px 0 0;padding-inline-start:20px;font-size:.84rem;color:var(--muted)}
 .model-note{font-size:.82rem;color:var(--muted);margin:0}
+/* eastern rivers (water from India) */
+.eastern .sec-title::before{background:var(--nehar)}
+.er{border:1px solid var(--line);border-inline-start:6px solid var(--lv,var(--line));border-radius:10px;padding:10px 14px;margin-top:10px;background:var(--sheet)}
+.er-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.er-head b{font-size:1.08rem}
+.er-sub{font-size:.85rem;color:var(--muted)}
+.er-months{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:8px;text-align:center}
+.er-m{display:flex;flex-direction:column;align-items:center;font-size:.78rem;line-height:1.5}
+.er-bar{height:56px;width:100%;max-width:34px;background:var(--line);border-radius:6px;position:relative;overflow:hidden}
+.er-bar i{position:absolute;inset-inline:0;bottom:0;background:var(--nehar);border-radius:6px}
+.er-bar i.mid{background:var(--sarson)} .er-bar i.hi{background:var(--brick)}
+.er-m b{font-size:.9rem} .er-m small{color:var(--muted);font-size:.72rem}
+.er-dams{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:10px}
+.er-dam{background:var(--nehar-soft);border-radius:8px;padding:6px 10px;display:flex;flex-direction:column;font-size:.88rem;line-height:1.7}
+.er-dam small{color:var(--muted);font-size:.76rem}

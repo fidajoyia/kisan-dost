@@ -143,7 +143,7 @@ export default function Home() {
   // 6. Seasonal flood outlook (Feature 3): server combines dams, rivers, 7-month forecast and ENSO.
   useEffect(() => {
     if (!coords) return;
-    const key = `kd-flood:${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}:${lang}`;
+    const key = `kd-flood2:${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}:${lang}`;
     const c = LS.get(key);
     if (c && Date.now() - c.t < 3 * 3600e3 && !floodTry) { setFlood(c.d); setFloodState("ok"); return; }
     setFloodState("loading");

@@ -182,6 +182,8 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
         <p className="hint"><a href="https://ndma.gov.pk" target="_blank" rel="noopener noreferrer">NDMA</a> · <a href="https://ffc.gov.pk" target="_blank" rel="noopener noreferrer">Federal Flood Commission</a> · <a href="https://pdma.punjab.gov.pk" target="_blank" rel="noopener noreferrer">PDMA Punjab</a></p>
       </section>
 
+      {data.eastern?.rivers ? <Eastern e={data.eastern} near={near} lang={lang} /> : null}
+
       {/* 7. All rivers */}
       <section>
         <h3 className="sec-title">{pick(lang, "پاکستان کے تمام دریا", "All rivers in Pakistan")}</h3>
@@ -209,6 +211,60 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
         {data.status?.errors?.length ? <p className="hint">{pick(lang, "کچھ ذرائع اس وقت دستیاب نہیں تھے:", "Some sources were unavailable:")} <span className="latin">{data.status.errors.join("; ")}</span></p> : null}
       </details>
     </div>
+  );
+}
+
+// Chenab, Ravi, Sutlej: water from India. Trained model + GloFAS flow forecast + Indian dams (CWC).
+const MON_UR = ["جنوری", "فروری", "مارچ", "اپریل", "مئی", "جون", "جولائی", "اگست", "ستمبر", "اکتوبر", "نومبر", "دسمبر"];
+const MON_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function Eastern({ e, near, lang }) {
+  const v = e.model?.validation || {};
+  const levelClass2 = (l) => levelClass(l === "medium" ? "moderate" : l);
+  const lvTxt = { high: pick(lang, "زیادہ خطرہ", "High"), medium: pick(lang, "درمیانہ خطرہ", "Medium"), low: pick(lang, "کم خطرہ", "Low"), unknown: "–" };
+  const order = [...e.rivers].sort((a, b) => (near.some((n) => n.id === b.id) ? 1 : 0) - (near.some((n) => n.id === a.id) ? 1 : 0));
+  return (
+    <section className="eastern">
+      <h3 className="sec-title">{pick(lang, "بھارت سے آنے والا پانی: چناب، راوی، ستلج", "Water from India: Chenab, Ravi, Sutlej")}</h3>
+      <p className="hint" style={{ marginTop: 0 }}>{pick(lang,
+        "کسان دوست کا اپنا تربیت یافتہ ماڈل: بھارت میں ان دریاؤں کے بالائی علاقوں کی بارش اور گرمی کی پیشگوئی، اور دریا کے موجودہ بہاؤ سے، ہر مہینے سرحد پر سیلاب کا امکان۔",
+        "Kisan Dost's own trained model: from the rain and heat forecast over these rivers' upper catchments in India and the river's flow now, the chance of a flood at the border each month.")}</p>
+      {order.map((r) => (
+        <div key={r.id} className={`er lv-${levelClass2(r.level)}`}>
+          <div className="er-head">
+            <b>{pick(lang, r.ur, r.en)}{near.some((n) => n.id === r.id) ? <em className="fl-you">{pick(lang, "آپ کے قریب", "near you")}</em> : null}</b>
+            <span className={`fl-lv lv-${levelClass2(r.level)}`}>{lvTxt[r.level]}</span>
+          </div>
+          <div className="er-sub">{pick(lang, `سرحدی اسٹیشن: ${r.station_ur}`, `Border station: ${r.en === "Sutlej" ? "Ganda Singh Wala" : r.en === "Ravi" ? "Jassar" : "Marala"}`)}{r.flowNowPctOfNormal != null ? ` · ${pick(lang, "آج کا بہاؤ معمول کا", "flow now")} ${r.flowNowPctOfNormal}%` : ""}</div>
+          <div className="er-months">
+            {r.months.map((m) => {
+              const mo = +m.month.slice(5, 7) - 1;
+              return (
+                <div key={m.month} className="er-m" title={`${m.p}%`}>
+                  <div className="er-bar"><i style={{ height: `${Math.max(4, m.p)}%` }} className={m.p >= 75 ? "hi" : m.p >= 50 ? "mid" : ""} /></div>
+                  <b className="num">{m.p}%</b>
+                  <span>{pick(lang, MON_UR[mo], MON_EN[mo])}</span>
+                  <small className="num">{m.rainPct > 0 ? "+" : ""}{m.rainPct}%</small>
+                </div>
+              );
+            })}
+          </div>
+          {r.dams?.length ? (
+            <div className="er-dams">
+              {r.dams.map((d) => (
+                <div key={d.id} className="er-dam">
+                  <b>{pick(lang, d.ur, d.en)}</b>
+                  <span><span className="num">{Math.round(d.pct)}%</span> {pick(lang, "بھرا", "full")}{d.lastYear ? <> · {pick(lang, "پچھلے سال", "last year")} <span className="num">{Math.round(d.lastYear.pct)}%</span></> : null}{d.normal != null ? <> · {pick(lang, "معمول", "normal")} <span className="num">{Math.round(d.normal)}%</span></> : null}</span>
+                  <small>{pick(lang, `چھوڑا گیا پانی ${d.lagDays} دن میں پاکستان پہنچتا ہے`, `released water reaches Pakistan in ${d.lagDays} days`)} · {new Date(d.date + "T00:00").toLocaleDateString(lang === "ur" ? "ur-PK" : "en-GB", { day: "numeric", month: "short" })}{d.snapshot ? pick(lang, " (محفوظ شدہ)", " (saved)") : ""}</small>
+                </div>
+              ))}
+            </div>
+          ) : <p className="hint">{pick(lang, "چناب پر بھارتی ڈیم (سلال، بگلیہار) پانی ذخیرہ نہیں کرتے؛ یہاں بالائی علاقوں کی بارش اور برف فیصلہ کن ہے۔", "India's Chenab dams (Salal, Baglihar) are run-of-river with little storage; upstream rain and snow decide.")}</p>}
+        </div>
+      ))}
+      <p className="hint">{pick(lang,
+        `ماڈل کی جانچ (1997 تا 2026، ہر سال کو الگ رکھ کر): AUC ${v.auc}، سیلابی مہینے پکڑے ${v.caught_flood_months}، غلط الارم ${Math.round((v.false_alarm_rate || 0) * 100)}%۔ نیچے کے فیصد: اس مہینے کی بارش معمول سے کم یا زیادہ۔ بھارتی ڈیم: سینٹرل واٹر کمیشن (CWC) کی ہفتہ وار رپورٹ۔`,
+        `Model check (1997–2026, each year held out): AUC ${v.auc}, flood months caught ${v.caught_flood_months}, false alarms ${Math.round((v.false_alarm_rate || 0) * 100)}%. Small % under each month: rain vs normal. Indian dams: Central Water Commission (CWC) weekly bulletin.`)}</p>
+    </section>
   );
 }
 
