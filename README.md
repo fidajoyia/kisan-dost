@@ -14,9 +14,9 @@ A phone app for Pakistani farmers, in Urdu. Take a photo of a leaf and it names 
 | Screen (bottom tab) | What the farmer gets | Where it comes from |
 |---|---|---|
 | **معائنہ** (leaf check, home) | Disease name, how sure, recommended spray (active ingredient), organic / field steps, safety. Refuses photos that are not a leaf of our 9 crops. Weather now, 7 days, watering advice, area disease warnings. | Our leaf model `public/models/kisan-leaf-v2.onnx` + `lib/leaf-kb.js`. Weather: Open-Meteo. Warnings: `lib/disease-rules.js` (crop calendar + 16-day forecast). |
-| **سیلاب** (flood) | Danger for the farm and each river for the next 7 months, more or less water than last year, more or less rain, what to do. | ECMWF seasonal forecast, Federal Flood Commission (Tarbela, Mangla), India CWC (Bhakra, Pong, Ranjit Sagar), GloFAS river flow, our trained model for Chenab / Ravi / Sutlej. |
+| **سیلاب** (flood) | One danger level (low / medium / high / very high) for the farm and each river, month by month for the next 7 months; water stored now vs last year with the report date; rain expected vs normal; what to do. The same answer is shown as a card on the home screen (at the top when the danger is high). | ECMWF seasonal forecast, Federal Flood Commission (Tarbela, Mangla), India CWC (Bhakra, Pong, Ranjit Sagar), GloFAS river flow, our trained model for Chenab / Ravi / Sutlej. Levels are decided in one place: `lib/flood/summary.js`. |
 | **بیج** (seeds) | Varieties from the top institutions, compared by the weather where each was tested vs the farm's weather. "Best" only if proven in similar weather **and** higher yield than check varieties; otherwise it says so honestly. | Official variety registrations (Crossref), NASA POWER climate normals. |
-| **تحقیق** (research) | New farming research, labelled in Urdu by crop and subject, with the original link. | Europe PMC, Google News, institution feeds. |
+| **تحقیق** (research) | New research on crops grown in Pakistan, labelled in Urdu by crop and subject from the paper's title, with a crop filter and the original link. Laboratory-only papers are left out (`lib/research-tags.js`). | Europe PMC, Google News, institution feeds. |
 | **درآمد** (import) | The legal steps to import seed into Pakistan and who to contact. | `lib/import-guide.js` |
 
 ---
@@ -154,5 +154,8 @@ kisan-dost/
 - Leaf check covers 9 crops. For any other plant it refuses instead of guessing. Real field photos of other crops could occasionally get through, so every result names the crop and says not to spray if that is wrong.
 - Sprays are named by active ingredient, never by brand or dose: "dose as on the label". Farmers should confirm with the agriculture extension office.
 - The flood outlook is a guide, not a certainty. Official NDMA / PDMA / FFC warnings come first.
+- Flood levels for the Indus, Jhelum, Kabul, hill torrents and local rain come from a weighted index, not a trained model; only the Chenab, Ravi and Sutlej model has been checked against past floods. In the index a month with under 60 mm of normal rain is counted as 60 mm, so "double the rain" of a dry month does not raise a warning, and a dam report older than 30 days is shown with its date but not used.
+- `ffc.gov.pk` cannot be reached from servers outside Pakistan, so the live app uses the saved report in `data/ffc-latest.json`. Run `npm run update-ffc` from a computer in Pakistan and push, at least weekly in the flood season.
+- Research items are academic papers and news, labelled by keyword rules. They tell the farmer what is being studied, not what to do.
 - Soil moisture is a weather-model estimate, not a field sensor.
 - Seed recommendations are only made when the facts support them; for most areas the honest answer today is "keep your locally approved variety".

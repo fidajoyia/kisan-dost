@@ -2,10 +2,9 @@
 import { Safe } from "./boundary";
 import { useEffect, useRef, useState } from "react";
 import { allDistricts, PROVINCES } from "@/lib/districts";
-import { tempSummary } from "@/lib/seeds";
 import { ResearchFeed, ImportGuide } from "./advisor";
 import { SeedFinder } from "./seeds";
-import { FloodOutlook } from "./flood";
+import { FloodOutlook, FloodCard } from "./flood";
 import { diagnoseLocally, warmLeafModel } from "./leaf-local";
 
 const LS = {
@@ -122,7 +121,7 @@ export default function Home() {
 
   // 5. Newest research from the 10 centres (server refreshes it automatically; cached here for 3 h).
   useEffect(() => {
-    const key = `kd-research:${lang}`;
+    const key = "kd-research3";
     const cached = LS.get(key);
     const markNew = (d) => {
       const seen = LS.get("kd-research-seen");
@@ -132,23 +131,23 @@ export default function Home() {
     };
     if (cached && Date.now() - cached.t < 3 * 3600e3 && !resTry) { setResearch(cached.d); setResState("ok"); markNew(cached.d); return; }
     setResState("loading");
-    fetch(`/api/research?lang=${lang}`).then((r) => r.json())
+    fetch("/api/research").then((r) => r.json())
       .then((d) => { if (d.error && !d.items?.length) throw 0; LS.set(key, { t: Date.now(), d }); setResearch(d); setResState("ok"); markNew(d); })
       .catch(() => setResState("error"));
-  }, [lang, resTry]);
+  }, [resTry]);
 
   // 6. Seasonal flood outlook (Feature 3): server combines dams, rivers, 7-month forecast and ENSO.
   useEffect(() => {
     if (!coords) return;
-    const key = `kd-flood2:${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}:${lang}`;
+    const key = `kd-flood3:${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}`;
     const c = LS.get(key);
     if (c && Date.now() - c.t < 3 * 3600e3 && !floodTry) { setFlood(c.d); setFloodState("ok"); return; }
     setFloodState("loading");
-    const q = new URLSearchParams({ lat: coords.lat, lon: coords.lon, lang });
+    const q = new URLSearchParams({ lat: coords.lat, lon: coords.lon });
     fetch(`/api/flood?${q}`).then((r) => r.json())
       .then((d) => { setFlood(d); setFloodState(d.error ? "error" : "ok"); if (!d.error) LS.set(key, { t: Date.now(), d }); })
       .catch(() => { setFlood(null); setFloodState("error"); });
-  }, [coords, lang, floodTry]);
+  }, [coords, floodTry]);
 
   function openTab(t) {
     if (tab === "research" && t !== "research") setNewIds(new Set()); // seen once you leave the tab
@@ -190,6 +189,9 @@ export default function Home() {
     ? [loc.place, loc.district, loc.province_ur || PROVINCES[loc.province] || loc.province].filter(Boolean).join("، ")
     : "";
 
+  // the flood answer on the home screen: first thing on the page when the danger is high
+  const floodHot = ["high", "severe"].includes(flood?.summary?.farm?.level);
+  const floodCard = <FloodCard data={flood} lang={lang} onOpen={() => { openTab("flood"); window.scrollTo({ top: 0 }); }} />;
   const placeShort = locState === "locating" ? "جگہ تلاش ہو رہی ہے…" : loc ? (loc.district || loc.place || "میری جگہ") : locState === "ok" ? "میری جگہ" : "جگہ چنیں";
   const camInputs = (compact) => (
     <div className={compact ? "cam-row" : "cam-big"} onPointerDown={() => warmLeafModel().catch(() => {})} onFocus={() => warmLeafModel().catch(() => {})}>
@@ -238,9 +240,9 @@ export default function Home() {
 
       <main className="screen" id="sheet-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} ref={resultRef}>
         <Safe resetKey={`${tab}|${lang}|${result ? 1 : 0}`}>
-          {tab === "flood" ? <Screen bare title="سیلاب وارننگ" sub="دریا، ڈیم اور آنے والے 7 مہینے"><FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} /></Screen>
+          {tab === "flood" ? <Screen bare title="سیلاب کا خطرہ" sub={placeLabel || "دریا، ڈیم اور آنے والے 7 مہینے"}><FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} /></Screen>
             : tab === "seeds" ? <Screen title="بیج مشورہ" sub="آپ کے موسم کے مطابق، دنیا کے بہترین اداروں سے"><SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => openTab("import")} /></Screen>
-            : tab === "research" ? <Screen bare title="نئی تحقیق" sub="دنیا کی 10 بہترین زرعی جامعات سے"><ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} zone={zoneNow} band={tempSummary(wx)?.band} onRetry={() => setResTry((n) => n + 1)} /></Screen>
+            : tab === "research" ? <Screen bare title="نئی تحقیق" sub="آپ کی فصلوں پر دنیا کی بہترین زرعی جامعات سے"><ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} onRetry={() => setResTry((n) => n + 1)} /></Screen>
             : tab === "import" ? <Screen title="بیج کی درآمد" sub="باہر سے بیج منگوانے کا قانونی طریقہ"><ImportGuide lang={lang} /></Screen>
             : busy ? <div className="card"><div className="thinking"><div className="spin" /><span>تصویر کا معائنہ ہو رہا ہے… چند سیکنڈ</span></div></div>
             : result ? (
@@ -254,6 +256,7 @@ export default function Home() {
               </div>
             ) : (
               <div className="stack">
+                {floodHot ? floodCard : null}
                 <section className="hero">
                   <h2>اپنی فصل کا معائنہ کریں</h2>
                   <ol className="steps">
@@ -265,6 +268,7 @@ export default function Home() {
                   {err ? <p className="board-err" role="alert">{err}</p> : null}
                   <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔ گندم، چاول، مکئی، کپاس، گنا، ٹماٹر، آلو، آم اور کینو۔ انٹرنیٹ کے بغیر بھی چلتا ہے۔</p>
                 </section>
+                {floodHot ? null : floodCard}
                 <Safe resetKey={wxState}><WeatherPanel wx={wx} wxState={wxState} outlook={outlook} /></Safe>
                 <Alerts outlook={outlook} state={outState} />
                 <p className="foot">یہ ایپ مشورہ دیتی ہے، حتمی تشخیص نہیں۔ کیمیائی دوا سے پہلے محکمہ زراعت (توسیع) یا زرعی ماہر سے تصدیق کریں اور مقدار لیبل کے مطابق رکھیں۔ موسم: Open-Meteo · مقام: OpenStreetMap · سیلاب: ECMWF، فیڈرل فلڈ کمیشن، بھارتی CWC · تحقیق: دنیا کی 10 بہترین زرعی جامعات۔</p>
@@ -278,7 +282,7 @@ export default function Home() {
           <button key={k} id={`tab-${k}`} role="tab" type="button" aria-selected={tab === k} aria-controls="sheet-panel" onClick={() => { openTab(k); window.scrollTo({ top: 0 }); }}>
             <span className="bn-ico"><I />
               {k === "research" && newIds.size && tab !== "research" ? <i className="badge num">{newIds.size}</i> : null}
-              {k === "flood" && flood?.farm?.overall && ["high", "severe"].includes(flood.farm.overall.level) && tab !== "flood" ? <i className="badge">!</i> : null}
+              {k === "flood" && floodHot && tab !== "flood" ? <i className="badge">!</i> : null}
             </span>
             <span className="bn-lbl">{l}</span>
           </button>

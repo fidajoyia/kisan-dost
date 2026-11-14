@@ -3,10 +3,8 @@ import { getResearch } from "@/lib/research-digest";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-// GET /api/research?lang=ur|roman|en → newest research from the ten centres, explained for farmers.
-export async function GET(req) {
-  const lang = new URL(req.url).searchParams.get("lang");
-  const l = ["ur", "roman", "en"].includes(lang) ? lang : "ur";
+// GET /api/research → newest farming research from the ten institutions, labelled by crop and subject.
+export async function GET() {
   try {
     return Response.json(await getResearch());
   } catch (e) {
