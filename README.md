@@ -1,190 +1,158 @@
-# Kisan Dost
+# Kisan Dost (کسان دوست)
 
-Farmer app: take a leaf photo and everything else runs automatically.
+A phone app for Pakistani farmers, in Urdu. Take a photo of a leaf and it names the disease and the spray. It also shows the farm's weather and watering advice, disease warnings for the area, a 7-month flood outlook for the rivers (including water coming from India), seeds matched to the farm's weather, and new research from the world's top agricultural universities.
 
-## What runs automatically
+- **Live app:** https://kisan-dost-pk.vercel.app
+- **Code:** https://github.com/fidajoyia/kisan-dost
 
-| Step | Source | When |
+**No AI service and no API key is used anywhere.** The leaf check is our own trained model running inside the phone's browser; the flood model for the eastern rivers is our own trained model; everything else is open public data plus fixed rules.
+
+---
+
+## 1. What each screen does
+
+| Screen (bottom tab) | What the farmer gets | Where it comes from |
 |---|---|---|
-| GPS location | Browser Geolocation API | On open (asks permission once; remembers last location) |
-| District / province name | OpenStreetMap Nominatim reverse geocoding, with an offline nearest-district fallback | After GPS |
-| Live weather: now, last 7 days, next 16 days | Open-Meteo forecast API (free, no key) | After GPS |
-| Rain status (none / recent / forecast / continuous) | Computed from Open-Meteo rain data | After weather |
-| Irrigation need | Soil moisture (9–27 cm) + ET₀ water balance + upcoming rain | After weather |
-| Regional disease alerts + days 17–30 estimate | Claude (text), cached per district per day | After weather |
-| Plant ID, disease diagnosis, early warning, crop-specific irrigation, treatment | Claude (vision) with live location + weather | As soon as a photo is taken |
-| **Flood outlook, 7 months ahead (Feature 3)** | ECMWF SEAS5 seasonal forecast + ERA5 history + Federal Flood Commission dam report + NOAA ENSO; per river basin | "سیلاب وارننگ" tab |
-| Land type: normal / sem (waterlogged, salty) / rait (sandy) | SoilGrids sand % + pH, plus district lists; farmer can override | After GPS |
-| Best seed per crop from the world's top institutions, compared for this farm | Official variety registrations (Crossref) + weekly web research (Claude) + farm temperature, winter and land type | "بیج مشورہ" tab |
-| How to get / import each seed in Pakistan | Built-in guide (NSDRA, DPP import permit, PSW, phytosanitary, research SMTA) | "بیج کی درآمد" tab |
-| New research from the world top-10 agricultural institutions (QS 2026) | Europe PMC papers + Google News (+ OpenAlex with key, + any RSS you add), explained by Claude; cached, refreshed every 6 h + daily cron | "نئی تحقیق" tab |
+| **معائنہ** (leaf check, home) | Disease name, how sure, recommended spray (active ingredient), organic / field steps, safety. Refuses photos that are not a leaf of our 9 crops. Weather now, 7 days, watering advice, area disease warnings. | Our leaf model `public/models/kisan-leaf-v2.onnx` + `lib/leaf-kb.js`. Weather: Open-Meteo. Warnings: `lib/disease-rules.js` (crop calendar + 16-day forecast). |
+| **سیلاب** (flood) | Danger for the farm and each river for the next 7 months, more or less water than last year, more or less rain, what to do. | ECMWF seasonal forecast, Federal Flood Commission (Tarbela, Mangla), India CWC (Bhakra, Pong, Ranjit Sagar), GloFAS river flow, our trained model for Chenab / Ravi / Sutlej. |
+| **بیج** (seeds) | Varieties from the top institutions, compared by the weather where each was tested vs the farm's weather. "Best" only if proven in similar weather **and** higher yield than check varieties; otherwise it says so honestly. | Official variety registrations (Crossref), NASA POWER climate normals. |
+| **تحقیق** (research) | New farming research, labelled in Urdu by crop and subject, with the original link. | Europe PMC, Google News, institution feeds. |
+| **درآمد** (import) | The legal steps to import seed into Pakistan and who to contact. | `lib/import-guide.js` |
 
-## Leaf check: our own trained model (no API)
+---
 
-The leaf photo check runs **Kisan Dost's own model inside the farmer's browser**: no AI service, no API key, no cost per photo, and it keeps working without internet once loaded.
+## 2. Run it on your own computer (Windows)
+
+You need **Node.js 18 or newer** (https://nodejs.org, the LTS version) and internet for the first install.
+
+**Easiest:** open the project folder and double-click `start-kisan-dost.bat`. It installs the packages the first time and opens the app at **http://localhost:3000**.
+
+**From VS Code:** open the folder, then *Terminal → New Terminal* and type:
+
+```bash
+npm install        # first time only: downloads the packages into node_modules/ (about 2 minutes)
+npm run dev        # starts the app at http://localhost:3000 (changes show up as you save)
+```
+
+For a fast, final version (the way it runs online):
+
+```bash
+npm run build      # checks and packs everything into .next/
+npm start          # serves it at http://localhost:3000
+```
+
+Stop it with **Ctrl + C** in the terminal. No `.env` file is needed. Optional settings are listed in `.env.example`.
+
+On a phone on the same Wi-Fi you can open `http://<your computer's IP>:3000`. GPS in the browser only works on `https://` or `localhost`, so on the phone pick the district by hand, or use the live link.
+
+---
+
+## 3. Does the GitHub link run the app?
+
+**No.** GitHub only **stores the code**, like a folder in the cloud. Opening the GitHub link shows files, not the app. To *use* the app, someone opens the **live link** (Vercel). To *check the code* or run it themselves, they use the GitHub link:
+
+```bash
+git clone https://github.com/fidajoyia/kisan-dost.git     # or: Code → Download ZIP on GitHub
+cd kisan-dost
+npm install
+npm run dev
+```
+
+Every time code is pushed to the `main` branch on GitHub, Vercel rebuilds the live app by itself in about a minute.
+
+---
+
+## 4. Running it somewhere else (another server)
+
+It is a normal **Next.js** (Node.js) app. Any host that runs Node works.
+
+| Where | How |
+|---|---|
+| **Vercel** (used now, free) | vercel.com → *Add New Project* → import the GitHub repo → *Deploy*. No settings needed. `vercel.json` adds daily refresh jobs and puts the server in Mumbai (closest to Pakistan). |
+| **Render / Railway / any VPS** | Build command `npm ci && npm run build`, start command `npm start`. Set `PORT` if the host asks. |
+| **Your own PC as a server** | `npm run build` then `npm start`. |
+
+Outside Vercel the daily refresh jobs in `vercel.json` do not run. That is fine: every cache refreshes itself when it gets old. If you want them, call these URLs once a day with any scheduler: `/api/flood/refresh`, `/api/research/refresh`, `/api/seeds/refresh`.
+
+---
+
+## 5. Where the models are
+
+| Model | File | Runs where | Size |
+|---|---|---|---|
+| **Leaf disease model** | `public/models/kisan-leaf-v2.onnx` | In the farmer's browser (phone), with `onnxruntime-web` from `public/ort/` | 25 MB (downloaded once, then cached; works offline) |
+| Leaf model labels + check threshold | `public/models/kisan-leaf-v2-labels.json` | Browser | small |
+| Leaf model report card (accuracy per disease) | `public/models/kisan-leaf-card.json` | – (documentation) | small |
+| Treatment for each disease | `lib/leaf-kb.js` | Browser | – |
+| **Flood model** (Chenab, Ravi, Sutlej) | `data/flood-model.json` | Server (`lib/flood/eastern.js`) | small |
+| Climate normals for seed comparison | `data/place-climate.json` | Server | small |
+| Saved copies used if a live source is down | `data/ffc-latest.json`, `data/india-dams.json` | Server | small |
+
+**How the models were trained** (Python, not needed to run the app): `scripts/leaf-model/` and `scripts/flood-model/`. The training photos are not in the repo (several GB); `scripts/leaf-model/fetch.py` downloads them from Hugging Face.
+
+Leaf model, end to end on 4,372 held-out photos (never seen in training):
 
 | | |
 |---|---|
-| Test accuracy | **95.17%** on 4,372 held-out photos (never used in training), end to end with the shipped int8 file; 0.62% are refused and the farmer is asked to retake |
-| Crop identified correctly | 99.25% (refusals counted as wrong) |
-| Classes | 62 diseases / pests / healthy across 9 crops, plus "not one of our crops" |
-| Training photos | 24,124 (+ mirrored copies) |
-| Method | Frozen DINOv2-small image features + our MLP classifier (1024 hidden), exported to ONNX, int8 weights (26 MB) |
-| Runtime | onnxruntime-web (WebAssembly), about 0.4 s per photo |
+| Accuracy | **95.17%** (photos it refused are counted as wrong) |
+| Crop recognised correctly | 99.25% |
+| Not-a-crop photos refused | 100% of 1,229 held-out everyday photos, backgrounds and other crops' leaves |
+| Real crop photos refused (asked to retake) | 0.62% |
+| Classes | 62 diseases / pests / healthy across wheat, rice, maize, cotton, sugarcane, tomato, potato, mango, citrus, plus "not one of our crops" |
+| Method | DINOv2-small image features + our own classifier, int8 ONNX |
 
-| Crop | Classes | Diseases / conditions |
-|---|---|---|
-| Citrus | 4 | Healthy, black_spot, canker, greening |
-| Cotton | 10 | Alternaria, Bacterial Blight, Curl Virus, Fusarium Wilt, Healthy, Herbicide Growth Damage, Leaf Hopper Jassids, Leaf Redding, Leaf Variegation, Verticillium Wilt |
-| Maize | 4 | Blight, Common Rust, Gray Leaf Spot, Healthy |
-| Mango | 8 | Anthracnose, Bacterial Canker, Cutting Weevil, Die Back, Gall Midge, Healthy, Powdery Mildew, Sooty Mould |
-| Potato | 3 | Early Blight, Healthy, Phytopthora (late blight) |
-| Rice | 6 | Bacterial_Leaf_Blight, Brown_Spot, Healthy, Leaf_Blast, Leaf_Scald, Sheath_Blight |
-| Sugarcane | 10 | Banded Chlorosis, Brown Spot, BrownRust, Grassy shoot, Healthy, Pokkah Boeng, Sett Rot, Smut, Viral Disease, Yellow Leaf |
-| Tomato | 10 | Bacterial Spot, Early Blight, Healthy, Late Blight, Leaf Mold, Septoria Leaf Spot, Spider Mites Two-spotted Spider Mite, Target Spot, Tomato Mosaic Virus, Tomato Yellow Leaf Curl Virus |
-| Wheat | 7 | Fusarium Head Blight, Glume Blotch, Healthy Ear, Healthy Leaf, Leaf Rust, Powdery Mildew, Stripe Rust |
+Flood model (each year held out in turn, 1997–2026): AUC 0.92 (season alone 0.80); caught 24 of 29 big flood months.
 
-Every class maps to a treatment card in `lib/leaf-kb.js`: Urdu name, signs, first-choice and alternative spray by **active ingredient and formulation** (as on the pack in Pakistan), organic and field steps, and safety. Dose is always "as on the label".
+---
 
-Training data (public, Hugging Face): Spitblaze/Corn_or_Maize_Leaf_Disease_Dataset; Project-AgML/rice_leaf_disease_classification; Project-AgML/sugarcane_leaf_disease_classification; Project-AgML/cotton_leaf_disease_classification (raw); Project-AgML/cotton_leaf_disease_classification_bangladesh_2 (raw); Project-AgML/tomato_leaf_disease; Project-AgML/MangoLeafBD_disease_classification; Project-AgML/potato_leaf_disease_classification; Project-AgML/citrus_fruit_leaf_disease_classification (leaf); Project-AgML/wheat_disease_detection (boxes cut out).
-**Not our crop? Then no diagnosis (v2).** The model also has an "other" class (everyday photos, bare backgrounds, leaves of crops we do not cover) and a similarity check against each crop class. On held-out photos it refused 100% of everyday photos (400), backgrounds (229) and other-crop leaves (600), while refusing 0.62% of real crop photos (the farmer is asked to retake those). End-to-end accuracy of the shipped int8 file on the 4,372 held-out photos: 95.17% (refusals counted as wrong). Extra data: DScomp380/plant_village (potato incl. Early Blight; other crops and backgrounds as "other"), Imagenette.
-
-Reproduce: `scripts/leaf-model/fetch.py` → `train.py extract` → `extract_flip.py` → `extra_feats.py` → `final2.py` → `e2e2.py` (writes `public/models/kisan-leaf-v2.onnx`, `kisan-leaf-v2-labels.json` and `kisan-leaf-card.json` with per-class precision / recall).
-
-Area disease warnings (`lib/disease-rules.js`) are rule based on the live 16-day forecast and the Punjab / Sindh crop calendar; they need no AI either.
-
-## Water from India: Chenab, Ravi, Sutlej (trained flood model)
-
-The flood tab has a section for the three eastern rivers whose water comes from India.
-
-- **Our trained model** (`data/flood-model.json`, scripts in `scripts/flood-model/`): logistic regression that gives, for each of the next 7 months, the chance that the river's peak at the border station (Marala, Jassar, Ganda Singh Wala) reaches its upper-quartile annual peak (about a 1-in-4-year flood). Inputs: rain this month and last month over the Indian catchment (ratio to normal), temperature anomaly, the river's flow last month, season. Trained on 1997–2026 GloFAS river discharge (Copernicus) and ERA5 weather; at run time the inputs come from the ECMWF SEAS5 seasonal forecast and the GloFAS 7-month flow forecast.
-- **Validation (each year held out):** AUC 0.92 (season alone: 0.80); 24 of 29 flood months caught at 50%; 12% false alarms. It gave the Aug–Sep 2025 floods 92–99% without seeing 2025.
-- **Indian dams (live):** Bhakra (Gobind Sagar) and Pong on the Sutlej / Beas, Ranjit Sagar (Thein) on the Ravi: % full now, same week last year, monthly normal, from India's Central Water Commission weekly bulletin (read through reservoirs.earth; snapshot fallback in `data/india-dams.json`, refresh with `node scripts/update-india-dams.mjs`). The dam levels are not a model input (CWC series only since 2023); a dam above 90% in the monsoon raises the river's level one step. The Chenab dams in India are run-of-river with little storage.
-
-## Run
-
-```bash
-cp .env.example .env.local     # add ANTHROPIC_API_KEY
-npm install
-npm run dev                    # http://localhost:3000
-```
-
-The browser only allows GPS on `https://` or `localhost`. To test on a phone, deploy (e.g. Vercel) or use an HTTPS tunnel.
-
-## Limits to know
-
-- **Days 17–30** are a climate estimate. Open-Meteo's forecast goes up to 16 days.
-- **Soil moisture** is a weather-model estimate, not a field sensor. The irrigation thresholds are generic because the soil type (sand / loam / clay) is unknown.
-- **Irrigation method** (flood / drip / sprinkler) can't be detected automatically. The advice covers *whether and when* to water.
-- **Nominatim** asks for about 1 request per second and an identifying User-Agent. For heavy traffic, set `NOMINATIM_EMAIL` or self-host.
-- **Treatment advice** names active ingredients only, never brands or doses. Farmers should confirm with the agriculture extension department.
-
-## Flood outlook (Feature 3)
-
-The outlook asks, for every river near the farm and every month of the next 7 months: **is this year more or less flood-prone than normal, and than last year?**
-
-| Signal | Source (free, no key) | Compared with |
-|---|---|---|
-| Rain over the river's upper catchment | ECMWF SEAS5 monthly forecast (`seasonal-api.open-meteo.com`) | model normal; last year (ERA5) |
-| Heat → snow and glacier melt | SEAS5 temperature anomaly; Skardu max/min from the FFC report | normal; last year |
-| Snow and ice stored upstream | SEAS5 snow-water anomaly; ERA5 snowfall since 1 October | normal; last year |
-| Water in Tarbela, Mangla, Chashma | Federal Flood Commission daily report (PDF on `ffc.gov.pk`) | same day last year (and 2 years ago) |
-| El Niño / La Niña | NOAA CPC ONI | a year ago |
-| Flood class at every barrage today, and the next 16 days of rain | FFC report; Open-Meteo forecast | — |
-
-How the numbers are made (`lib/flood/model.js`):
-- Each signal gets a score from 0 to 100, where 50 is a normal year.
-- Heat and snow count for more on glacier-fed rivers (Indus 0.6, Kabul 0.35) and hardly at all on rain-fed ones.
-- Dam storage counts on the Indus (Tarbela) and Jhelum (Mangla).
-- ENSO counts only in monsoon months.
-- **Monthly risk = that month's usual flood hazard (August = 1.0) × this year's combined score.** Levels: below 30 low, 30–54 moderate, 55–74 high, 75 and up severe.
-- The same signals measured for last year give the **this year vs last year** verdict.
-- Rivers near the farm (within 35 km of the river, or 40 km for hill torrents) come from GPS (`lib/flood/rivers.js`). The farm's own rain covers flash floods.
-- The 7-month forecast reaches the monsoon only from about February. Before that, the app shows a low-confidence **early monsoon signal** from snowpack, spring heat and ENSO.
-
-Data and free-tier limits:
-- Open-Meteo's free tier allows 600 calls a minute and 10,000 a day, and history requests are expensive. Past seasons are therefore cached for a month, and only 2 history points per basin are used.
-- An in-process budget (`OPEN_METEO_BUDGET_PER_MIN`, default 450) spaces the requests.
-- A new server fills the full history within about 5 minutes, in the background. Until then the app says the "last year" columns are still loading.
-- `vercel.json` runs `/api/flood/refresh` daily.
-- FFC publishes daily only in flood season (mid-June to mid-October). Outside it, the newest report is used and its date is shown.
-
-The outlook is guidance, not an official warning. The app always points to NDMA, PDMA and FFC.
-
-## Seed advisor and research feed
-
-**The 10 institutions** (`lib/research-centers.js`): the world top 10 in the *QS World University Rankings by Subject 2026, Agriculture & Forestry*:
-1. Wageningen University & Research
-2. UC Davis
-3. Swedish University of Agricultural Sciences
-4. Cornell
-5. China Agricultural University
-6. Purdue
-7. Iowa State
-8. ETH Zurich
-9. Ghent University
-10. Norwegian University of Life Sciences
-
-When QS publishes a new year, edit this one file. The feed and the app follow it.
-
-**Seed finder** (`/api/seeds`, `lib/seed-intel/`): this is the best seed for each crop from the world's top agricultural institutions, compared for each farm.
-1. **Automatic research.** For each institution, the server reads every variety it officially registered in the *Journal of Plant Registrations*, via the free Crossref API, and caches it for 7 days.
-   - From each registration it extracts trial yield vs check varieties, maturity, disease and pest resistance, heat / drought / salt / flood tolerance, spring or winter habit, quality, the USDA GRIN accession and the seller.
-   - A variety counts only for the institution that *developed or released* it, not for a co-author.
-2. **Web research by Claude, weekly per crop** (when `ANTHROPIC_API_KEY` is set; turn it off with `SEED_WEB_RESEARCH=0`).
-   - It finds where each top variety is sold or licensed and whether it is in Pakistan.
-   - It adds varieties from institutions that don't publish in that journal (China Agricultural University, Wageningen, SLU, ETH, Ghent, NMBU…).
-   - A fact without a source URL is dropped.
-3. **Comparison for this farm** (`score.js`). Each variety is scored on:
-   - yield 35%
-   - disease resistance 20%
-   - fit 25% (spring/winter habit vs the farm's last winter temperature from ERA5, heat, and land type normal / sem / rait)
-   - recency 10%
-   - evidence 10%
-
-   The app shows the best seed, the reasons, a comparison table and where to get it.
-
-Institutions: QS 2026 top 10, plus ranks 11–15 (Texas A&M, Michigan State, Florida, UBC, Guelph), so cotton, sugarcane and peanut get options. The rank is always shown. A weekly cron (`/api/seeds/refresh`) adds newly registered varieties automatically.
-
-**Land type** (`/api/soil`, `lib/soil-zones.js`): sand ≥ 65% means rait, and pH ≥ 8.5 means sem/kallar tendency. If SoilGrids is down, the district lists are used instead. Sem is patchy, so the app labels this as a guess and the farmer's own choice is saved and wins.
-
-**New research, automatically** (`/api/research`, `lib/research-feed.js`, `lib/research-digest.js`):
-1. For each institution, the server collects its newest crop, soil and seed papers from Europe PMC (no key needed), plus news from Google News. If `OPENALEX_API_KEY` is set, it also queries OpenAlex; any feeds in `RESEARCH_FEEDS` are added too.
-2. Claude keeps the items that matter to Pakistani farmers. It rewrites each one in Urdu, Roman Urdu or English and tags it by crop, land type and heat or cold. The tags put new research on the matching seed cards.
-3. The digest is cached and rebuilt every 6 hours. `vercel.json` also runs `/api/research/refresh` daily. Without Vercel, point any scheduler at it: `curl -H "Authorization: Bearer $CRON_SECRET" https://your-site/api/research/refresh`.
-4. The app marks items it has not shown before as **نیا (new)**, and the tab shows how many there are.
-5. If every source is unreachable, Claude's web search is used as a fallback. Web search must be enabled for your key in the Anthropic Console; set `RESEARCH_WEB_SEARCH=0` to turn it off.
-
-**Import guide** (`lib/import-guide.js`): farmer, commercial and research routes. The rules reflect the 2025–26 changes, including the FSC&RD merger into NSDRA. Re-check them with NSDRA and DPP before relying on them.
-
-## Structure
+## 6. How the files fit together
 
 ```
-app/page.jsx              UI + automatic flow (GPS → place → weather → alerts; photo → analysis)
-app/api/location/route.js reverse geocoding (Nominatim) + nearest-district fallback
-app/api/weather/route.js  Open-Meteo: current, 7 past + 16 forecast days, rain, soil moisture, ET₀, irrigation need
-app/api/outlook/route.js  Claude: regional alerts, days 17–30 estimate, irrigation note, tips
-app/api/analyze/route.js  Claude vision: plant ID, diseases, early warning, irrigation, treatment
-lib/districts.js          approx. district HQ coordinates for Pakistan
-lib/claude.js             Anthropic Messages API client
-lib/weather-text.js       weather → prompt text
-app/seeds.jsx             seed finder: best seed per crop + comparison + where to get it
-app/advisor.jsx           research feed, research centres, import guide (UI)
-app/api/seeds/route.js    ranked seeds for a crop and farm; /refresh = weekly cron
-lib/seed-intel/           institutions, crops, registration extractor, scoring, research engine
-app/api/soil/route.js     SoilGrids texture + pH → normal / sem / rait guess
-app/api/research/route.js research digest (cached); /refresh rebuilds it (cron)
-lib/research-centers.js   world top-10 agricultural institutions (QS 2026)
-lib/seeds.js              seed catalogue + temperature / calendar ranking
-lib/soil-zones.js         district lists + SoilGrids parsing
-lib/research-feed.js      Europe PMC / Google News / OpenAlex / RSS collectors
-lib/research-digest.js    Claude farmer summaries + cache
-lib/import-guide.js       how to get / import seed in Pakistan
-app/flood.jsx             flood outlook screen (Feature 3)
-app/api/flood/route.js    7-month flood outlook for a location; /refresh = daily cron
-lib/flood/rivers.js       river basins, catchment points, river paths, gauges, monthly hazard
-lib/flood/sources.js      SEAS5, ERA5, FFC PDF parser, NOAA ONI, 16-day forecast (+ API budget)
-lib/flood/model.js        scores, monthly risk, this year vs last year, early monsoon signal
-lib/flood/index.js        layered caching, background history fill, Claude explanation
-vercel.json               daily crons (research + flood)
+kisan-dost/
+├─ app/                      what the farmer sees + the server's answers
+│  ├─ layout.jsx             page frame: fonts, Urdu right-to-left, phone settings
+│  ├─ page.jsx               the app: top bar, 5 screens, bottom tabs, leaf result, weather card
+│  ├─ leaf-local.js          loads the leaf model in the browser and turns its answer into a result
+│  ├─ flood.jsx              flood screen
+│  ├─ seeds.jsx              seed screen
+│  ├─ advisor.jsx            research screen + import guide
+│  ├─ boundary.jsx, error.jsx  if one part fails, show a retry message instead of crashing
+│  ├─ globals.css            all colours and layout (light + dark)
+│  └─ api/                   server endpoints the screens call
+│     ├─ weather/            Open-Meteo forecast, rain, soil moisture, watering need
+│     ├─ location/           GPS → village / district name (OpenStreetMap)
+│     ├─ soil/               normal / waterlogged-salty / sandy land guess
+│     ├─ outlook/            area disease warnings (rules)
+│     ├─ flood/              7-month flood outlook (+ refresh/)
+│     ├─ seeds/              seed comparison for this farm (+ refresh/)
+│     └─ research/           research feed (+ refresh/)
+├─ lib/                      the logic behind the endpoints
+│  ├─ leaf-kb.js             every disease: Urdu name, signs, sprays, organic + field steps
+│  ├─ disease-rules.js       weather rules for area warnings
+│  ├─ flood/                 rivers, data sources, risk model, eastern-rivers model, Indian dams
+│  ├─ seed-intel/            institutions, crops, reading registrations, test places, climate match, scoring
+│  ├─ research-*.js          collecting, filtering and labelling research
+│  ├─ districts.js, soil-zones.js, import-guide.js, seeds.js   lists and small helpers
+├─ data/                     model + saved data files (see section 5)
+├─ public/models/            the leaf model
+├─ public/ort/               the engine that runs the model in the browser
+├─ scripts/                  training and data-update scripts (not used while the app runs)
+├─ package.json              the packages the app needs and the run commands
+├─ next.config.js            caching for the model files
+├─ vercel.json               hosting region + daily refresh jobs
+└─ start-kisan-dost.bat      double-click to run on Windows
 ```
+
+**What happens when a farmer takes a photo:** `page.jsx` shrinks the photo → `leaf-local.js` runs `kisan-leaf-v2.onnx` on the phone → if it is not one of our crops it says so; otherwise it takes the disease → `lib/leaf-kb.js` gives the spray and steps → `page.jsx` shows the result. Nothing is sent to a server.
+
+**What happens when the app opens:** GPS → `/api/location` (place name) and `/api/weather` → `/api/outlook` (area warnings) → the flood, seed and research screens fetch their own data when needed. Answers are cached so the next farmer gets them instantly.
+
+---
+
+## 7. Limits to know
+
+- Leaf check covers 9 crops. For any other plant it refuses instead of guessing. Real field photos of other crops could occasionally get through, so every result names the crop and says not to spray if that is wrong.
+- Sprays are named by active ingredient, never by brand or dose: "dose as on the label". Farmers should confirm with the agriculture extension office.
+- The flood outlook is a guide, not a certainty. Official NDMA / PDMA / FFC warnings come first.
+- Soil moisture is a weather-model estimate, not a field sensor.
+- Seed recommendations are only made when the facts support them; for most areas the honest answer today is "keep your locally approved variety".

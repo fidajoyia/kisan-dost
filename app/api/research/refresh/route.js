@@ -12,10 +12,8 @@ export async function GET(req) {
   if (secret && req.headers.get("authorization") !== `Bearer ${secret}`)
     return Response.json({ error: "unauthorized" }, { status: 401 });
   revalidateTag("research");
-  const out = {};
-  for (const lang of ["ur", "en"]) {
-    try { const r = await getResearch(lang); out[lang] = { items: r.items.length, mode: r.mode, counts: r.counts }; }
-    catch (e) { out[lang] = { error: e.message }; }
-  }
+  let out;
+  try { const r = await getResearch(); out = { items: r.items.length, counts: r.counts }; }
+  catch (e) { out = { error: e.message }; }
   return Response.json({ refreshed: new Date().toISOString(), ...out });
 }
