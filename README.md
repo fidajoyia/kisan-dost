@@ -11,8 +11,19 @@ A phone app for Pakistani farmers, in Urdu. Take a photo of a leaf and it names 
 
 ## 1. What each screen does
 
-| Screen (bottom tab) | What the farmer gets | Where it comes from |
-|---|---|---|
+The app's seven features, reached from the home screen tiles and the five bottom tabs:
+
+| # | Feature | Tab | Where the data comes from |
+|---|---|---|---|
+| 1 | **Leaf disease check + which spray** (refuses photos that are not one of our 9 crops) | معائنہ (home) | Our leaf model `public/models/kisan-leaf-v2.onnx` + `lib/leaf-kb.js` |
+| 2 | **Weather warnings** (crop disease risk, frost, heat, spray timing) | موسم | Open-Meteo forecast + `lib/disease-rules.js` |
+| 3 | **Rain and soil moisture** (last week, next week, when to water) | موسم | Open-Meteo forecast and soil moisture |
+| 4 | **Flood warning, next 7 months** | پانی | ECMWF seasonal forecast, GloFAS river flow, our trained model for Chenab / Ravi / Sutlej |
+| 5 | **Dam water report** (how full now vs last year) | پانی | Federal Flood Commission (Tarbela, Mangla), India CWC (Bhakra, Pong, Ranjit Sagar) |
+| 6 | **Seed advice** for the farm's weather and land (+ new research, + how to import seed) | بیج | Official variety registrations (Crossref), NASA POWER climate |
+| 7 | **Mandi rates + government schemes** | منڈی | Punjab government daily wholesale prices (AMIS, amis.pk), shown per maund; schemes from the Punjab Agriculture Department and Punjab Government pages (`lib/schemes.js`) |
+
+---|---|---|
 | **معائنہ** (leaf check, home) | Disease name, how sure, recommended spray (active ingredient), organic / field steps, safety. Refuses photos that are not a leaf of our 9 crops. Weather now, 7 days, watering advice, area disease warnings. | Our leaf model `public/models/kisan-leaf-v2.onnx` + `lib/leaf-kb.js`. Weather: Open-Meteo. Warnings: `lib/disease-rules.js` (crop calendar + 16-day forecast). |
 | **سیلاب** (flood) | Danger for the farm and each river for the next 7 months, more or less water than last year, more or less rain, what to do. | ECMWF seasonal forecast, Federal Flood Commission (Tarbela, Mangla), India CWC (Bhakra, Pong, Ranjit Sagar), GloFAS river flow, our trained model for Chenab / Ravi / Sutlej. |
 | **بیج** (seeds) | Varieties from the top institutions, compared by the weather where each was tested vs the farm's weather. "Best" only if proven in similar weather **and** higher yield than check varieties; otherwise it says so honestly. | Official variety registrations (Crossref), NASA POWER climate normals. |
@@ -115,7 +126,8 @@ kisan-dost/
 │  ├─ leaf-local.js          loads the leaf model in the browser and turns its answer into a result
 │  ├─ flood.jsx              flood screen
 │  ├─ seeds.jsx              seed screen
-│  ├─ advisor.jsx            research screen + import guide
+│  ├─ advisor.jsx            research list + import guide (inside the seed screen)
+│  ├─ mandi.jsx              mandi rates + government schemes
 │  ├─ boundary.jsx, error.jsx  if one part fails, show a retry message instead of crashing
 │  ├─ globals.css            all colours and layout (light + dark)
 │  └─ api/                   server endpoints the screens call
@@ -125,6 +137,7 @@ kisan-dost/
 │     ├─ outlook/            area disease warnings (rules)
 │     ├─ flood/              7-month flood outlook (+ refresh/)
 │     ├─ seeds/              seed comparison for this farm (+ refresh/)
+│     ├─ mandi/              today's rates at the nearest government market
 │     └─ research/           research feed (+ refresh/)
 ├─ lib/                      the logic behind the endpoints
 │  ├─ leaf-kb.js             every disease: Urdu name, signs, sprays, organic + field steps
@@ -132,6 +145,7 @@ kisan-dost/
 │  ├─ flood/                 rivers, data sources, risk model, eastern-rivers model, Indian dams
 │  ├─ seed-intel/            institutions, crops, reading registrations, test places, climate match, scoring
 │  ├─ research-*.js          collecting, filtering and labelling research
+│  ├─ mandi.js, schemes.js   market prices (AMIS) and the official schemes list
 │  ├─ districts.js, soil-zones.js, import-guide.js, seeds.js   lists and small helpers
 ├─ data/                     model + saved data files (see section 5)
 ├─ public/models/            the leaf model
@@ -156,3 +170,4 @@ kisan-dost/
 - The flood outlook is a guide, not a certainty. Official NDMA / PDMA / FFC warnings come first.
 - Soil moisture is a weather-model estimate, not a field sensor.
 - Seed recommendations are only made when the facts support them; for most areas the honest answer today is "keep your locally approved variety".
+- Mandi rates cover Punjab markets only (that is what AMIS publishes); farmers elsewhere see the nearest Punjab market with its distance. Schemes listed are Punjab's.

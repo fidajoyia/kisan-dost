@@ -23,10 +23,6 @@ export function ResearchFeed({ data, state, lang, newIds, zone, band, onRetry })
   return (
     <div className="stack" dir={dirOf(lang)}>
       <section>
-        <p className="hint" style={{ marginTop: 0 }}>
-          {pick(lang, "نئی تحقیق خود بخود یہاں آتی ہے۔", "New research arrives here automatically.")}
-          {data?.updated ? ` ${pick(lang, "آخری اپڈیٹ", "Last updated")}: ${new Date(data.updated).toLocaleString(lang === "ur" ? "ur-PK" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}
-        </p>
         <label className="toggle">
           <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />
           <span>{pick(lang, `صرف میری زمین سے متعلق: ${ZONES[zone].ur}`, `Only for my land: ${ZONES[zone].en}`)}</span>

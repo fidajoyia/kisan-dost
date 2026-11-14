@@ -149,28 +149,12 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
 
   return (
     <div className="stack seeds2" dir={dir}>
-      <section className="sf-ctx">
-        <div className="tempstrip">
-          <div><span>{pick(lang, "اگلے 14 دن اوسط", "14-day average")}</span><b className="num">{temps ? `${temps.mean14}°C` : "–"}</b></div>
-          <div><span>{pick(lang, "دن / رات", "Day / night")}</span><b className="num">{temps ? `${Math.round(temps.max14)}° / ${Math.round(temps.min14)}°` : "–"}</b></div>
-          <div><span>{pick(lang, "سردیوں کا اوسط", "Winter average")}</span><b className="num">{data?.ctx?.winterMean != null ? `${data.ctx.winterMean}°C` : "–"}</b></div>
-        </div>
-        <div className="zone-switch" role="group" aria-label={pick(lang, "زمین کی قسم", "Land type")}>
-          {Object.keys(ZONES).map((z) => (
-            <button key={z} type="button" aria-pressed={zone === z} onClick={() => setZone(z)}>
-              <span>{pick(lang, ZONES[z].ur, ZONES[z].en)}</span>
-              {guess?.zone === z ? <em>{pick(lang, "خودکار اندازہ", "auto guess")}</em> : null}
-            </button>
-          ))}
-        </div>
-      </section>
-
       <section>
         <h3 className="sec-title">{pick(lang, "فصل منتخب کریں", "Choose crop")}</h3>
         <div className="sf-crops" role="tablist">
           {shown.map((c) => (
             <button key={c.id} type="button" role="tab" aria-selected={crop === c.id} onClick={() => choose(c.id)}>
-              {pick(lang, c.ur, c.en)}{counts?.[c.id] ? <span className="num">{counts[c.id]}</span> : null}
+              {pick(lang, c.ur, c.en)}
             </button>
           ))}
         </div>
@@ -180,6 +164,16 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
             {{ now: pick(lang, "ابھی کاشت کریں ✓", "sow now ✓"), hot: pick(lang, "موسم ابھی گرم ہے، چند دن رکیں", "still too warm, wait a few days"), cold: pick(lang, "موسم ابھی ٹھنڈا ہے، رکیں", "still too cold, wait"), soon: pick(lang, `${sow.days} دن میں کاشت شروع`, `starts in ${sow.days} days`), later: pick(lang, "اس موسم میں نہیں", "not this season") }[sow.state]}
           </p>
         ) : null}
+      </section>
+      <section>
+        <h3 className="sec-title">{pick(lang, "آپ کی زمین", "Your land")}</h3>
+        <div className="zone-switch" role="group" aria-label={pick(lang, "زمین کی قسم", "Land type")}>
+          {Object.keys(ZONES).map((z) => (
+            <button key={z} type="button" aria-pressed={zone === z} onClick={() => setZone(z)}>
+              <span>{pick(lang, ZONES[z].ur, ZONES[z].en)}</span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {!coords ? <p className="status">{pick(lang, "لوکیشن ملتے ہی آپ کے علاقے کے مطابق بیج دکھائے جائیں گے۔", "Seeds for your area appear once your location is available.")}</p>
@@ -200,9 +194,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
             ) : (
               <section className="sf-none">
                 <b>{pick(lang, "آپ کے علاقے کے لیے ابھی کوئی محفوظ غیر ملکی بیج نہیں ملا", "No safe foreign seed found for your area yet")}</b>
-                <p>{pick(lang,
-                  `ہم نے ${data.total || list.length} اقسام دیکھیں۔ کوئی بھی ایسی نہیں جو آپ جیسے موسم میں آزمائی گئی ہو اور سرکاری تجربات میں پرانی اقسام سے زیادہ پیداوار ثابت کر چکی ہو۔ اندازے سے سفارش کر کے ہم آپ کا نقصان نہیں کروانا چاہتے۔`,
-                  `We checked ${data.total || list.length} varieties. None was tested in weather like yours and also proved more yield than the check varieties in official trials. We will not guess and risk your crop.`)}</p>
+                <p>{pick(lang, "باہر کی کوئی قسم ایسی نہیں ملی جو آپ جیسے موسم میں آزمائی گئی ہو اور زیادہ پیداوار دے چکی ہو۔ اندازے سے بیج بتا کر ہم آپ کا نقصان نہیں کروانا چاہتے۔", "No foreign variety was both tested in weather like yours and proven to yield more. We will not guess and risk your crop.")}</p>
                 <p>{pick(lang, "اس سال اپنے علاقے کے لیے منظور شدہ قسم ہی کاشت کریں۔ صحیح قسم کے لیے محکمہ زراعت (توسیع) کے دفتر یا ایوب زرعی تحقیقاتی ادارہ فیصل آباد سے پوچھیں۔", "This year sow a variety approved for your area. Ask the Agriculture (Extension) office or the Ayub Agricultural Research Institute, Faisalabad.")}</p>
               </section>
             )}
@@ -232,9 +224,6 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
                 })}
               </div>
             </section>
-            <p className="hint">{pick(lang,
-              `یہ معلومات دنیا کے بڑے زرعی اداروں کی سرکاری اقسام کی رجسٹریشن سے لی گئی ہیں۔ موسم کا موازنہ: ناسا کا 20 سالہ موسمی ریکارڈ، فصل کے مہینوں میں۔ ہر ہفتے نئی اقسام خود شامل ہوتی ہیں۔ آخری اپڈیٹ: ${new Date(data.researched || data.updated).toLocaleDateString("ur-PK")}`,
-              `From the official variety registrations of the world's leading agricultural institutions. Weather comparison: NASA's 20-year climate record over the crop months. New varieties are added every week. Last update: ${new Date(data.researched || data.updated).toLocaleDateString("en-GB")}`)}</p>
           </>
         )}
     </div>

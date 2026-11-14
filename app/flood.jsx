@@ -107,6 +107,36 @@ function Meter({ pct, level, lang }) {
   );
 }
 
+// Point 4: dam water report, plain: how full each dam is now and the same time last year
+const DAM_UR = { tarbela: ["تربیلا ڈیم", "دریائے سندھ"], mangla: ["منگلا ڈیم", "دریائے جہلم"], chashma: ["چشمہ بیراج", "دریائے سندھ"] };
+const DAM_EN = { tarbela: ["Tarbela Dam", "Indus"], mangla: ["Mangla Dam", "Jhelum"], chashma: ["Chashma", "Indus"] };
+export function DamsReport({ data, lang }) {
+  const res = data?.dams?.reservoirs || {};
+  const rows = [
+    ...["tarbela", "mangla"].filter((k) => res[k]?.pct != null).map((k) => ({ id: k, name: pick(lang, DAM_UR[k][0], DAM_EN[k][0]), river: pick(lang, DAM_UR[k][1], DAM_EN[k][1]), pct: res[k].pct, ly: res[k].pctLastYear, date: data.dams.date, india: false })),
+    ...arr(data?.eastern?.rivers).flatMap((r) => arr(r.dams).map((d) => ({ id: d.id, name: pick(lang, d.ur, d.en), river: pick(lang, r.ur, r.en), pct: d.pct, ly: d.lastYear?.pct, date: d.date, india: true }))),
+  ];
+  if (!rows.length) return null;
+  const when = (d) => (d ? new Date(d + "T00:00").toLocaleDateString(lang === "ur" ? "ur-PK" : "en-GB", { day: "numeric", month: "long" }) : "");
+  return (
+    <section className="dams" id="dams">
+      <h3 className="sec-title">{pick(lang, "ڈیموں میں پانی", "Water in the dams")}</h3>
+      {rows.map((d) => {
+        const diff = d.ly != null ? d.pct - d.ly : 0;
+        const cmp = d.ly == null ? "" : diff >= 5 ? pick(lang, "پچھلے سال سے زیادہ", "more than last year") : diff <= -5 ? pick(lang, "پچھلے سال سے کم", "less than last year") : pick(lang, "پچھلے سال جتنا", "same as last year");
+        return (
+          <div key={d.id} className="dam">
+            <div className="dam-h"><b>{d.name}</b><small>{d.river}{d.india ? pick(lang, " · بھارت", " · India") : ""}</small></div>
+            <div className="dam-bar"><i style={{ width: `${Math.min(100, Math.max(2, d.pct))}%` }} /></div>
+            <p>{pick(lang, `ابھی ${Math.min(100, Math.round(d.pct))}٪ بھرا ہے`, `${Math.min(100, Math.round(d.pct))}% full now`)}{cmp ? ` · ${cmp}` : ""}{d.ly != null ? pick(lang, ` (پچھلے سال ${Math.min(100, Math.round(d.ly))}٪)`, ` (last year ${Math.min(100, Math.round(d.ly))}%)`) : ""}</p>
+            <small className="dam-date">{pick(lang, `${when(d.date)} کی رپورٹ`, `report of ${when(d.date)}`)}</small>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
 function RiverCard({ v, near, lang }) {
   return (
     <div className={`fx-river lv-${levelClass(v.level)}`}>
@@ -172,6 +202,8 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
           `The monsoon (July–September) forecast is not available yet; it appears here in February–March.${ms ? ` Early hint: the monsoon may be ${{ above: "stronger than normal", normal: "about normal", below: "weaker than normal" }[ms.tendency]} (not certain yet).` : ""}`)}</p>
       ) : null}
 
+      <DamsReport data={data} lang={lang} />
+
       {/* 2. Rivers near the farm */}
       {nearViews.length ? (
         <section>
@@ -193,15 +225,6 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
         {otherViews.map((v) => <RiverCard key={v.id} v={v} lang={lang} />)}
       </details>
 
-      <details className="more">
-        <summary>{pick(lang, "یہ معلومات کہاں سے آتی ہیں؟", "Where does this come from?")}</summary>
-        <ul className="list">
-          <li>{pick(lang, "بارش اور گرمی کی پیشگوئی: یورپی موسمی مرکز (ECMWF)۔", "Rain and heat forecast: the European weather centre (ECMWF).")}</li>
-          <li>{pick(lang, "تربیلا اور منگلا ڈیم: فیڈرل فلڈ کمیشن کی رپورٹ۔ بھارت کے ڈیم: بھارتی سینٹرل واٹر کمیشن کی ہفتہ وار رپورٹ۔", "Tarbela and Mangla: Federal Flood Commission report. Indian dams: India's Central Water Commission weekly report.")}</li>
-          <li>{pick(lang, `چناب، راوی اور ستلج کے لیے کسان دوست کا اپنا ماڈل، جو 1997 سے اب تک کے ریکارڈ پر جانچا گیا: پچھلے ${data.eastern?.model?.validation?.caught_flood_months ? `${data.eastern.model.validation.caught_flood_months.split("/")[1]} بڑے سیلابوں میں سے ${data.eastern.model.validation.caught_flood_months.split("/")[0]}` : "زیادہ تر بڑے سیلاب"} اس نے پہلے سے پکڑے۔`, `For the Chenab, Ravi and Sutlej, Kisan Dost's own model, checked on records since 1997: it caught ${data.eastern?.model?.validation?.caught_flood_months || "most"} past big floods in advance.`)}</li>
-          <li>{pick(lang, "خطرے کا فیصد ایک پیمانہ ہے (0 = کوئی خطرہ نہیں، 100 = بہت بڑا خطرہ)۔ یہ معلومات ہر 12 گھنٹے بعد خود تازہ ہوتی ہیں۔", "The danger % is a scale (0 = no danger, 100 = very high). It refreshes every 12 hours.")}</li>
-        </ul>
-      </details>
     </div>
   );
 }
