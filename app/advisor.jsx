@@ -36,22 +36,20 @@ export function ResearchFeed({ data, state, lang, newIds, onRetry }) {
               {shown.map((r) => {
                 const c = centerById(r.center);
                 return (
-                  <a key={r.id} className="rs" href={r.link} target="_blank" rel="noopener noreferrer">
+                  <article key={r.id} className="rs">
                     <h4>{newIds.has(r.id) ? <span className="new">{pick(lang, "نیا", "New")}</span> : null}{lang === "ur" ? r.title_ur : r.title}</h4>
-                    {lang === "ur" ? <p className="latin rs-en" dir="ltr">{r.title}</p> : null}
-                    <p className="rs-meta">{c ? <span>{pick(lang, c.name_ur, c.short)}</span> : null}{r.date ? <span className="num">{r.date}</span> : null}<span className="rs-open">{pick(lang, "اصل تحقیق کھولیں", "Open source")} ↗</span></p>
-                  </a>
+                    <p className="rs-meta">{c ? <span>{pick(lang, c.name_ur, c.short)}</span> : null}{r.date ? <span className="num">{r.date}</span> : null}</p>
+                  </article>
                 );
               })}
             </div>
           )}
-        {items.length ? <p className="hint">{pick(lang, "اوپر اردو میں فصل اور موضوع لکھا ہے؛ پوری تفصیل اصل (انگریزی) تحقیق میں ہے۔ فہرست روزانہ خود تازہ ہوتی ہے۔", "Each item is labelled by crop and subject; full details are in the original source. The list refreshes itself daily.")}</p> : null}
       </section>
       <details className="more rs-centers">
         <summary>{pick(lang, "یہ تحقیق کن اداروں سے آتی ہے؟", "Where does this research come from?")}</summary>
-        <p className="hint">{RANKING.name}</p>
+        <p className="hint">{pick(lang, "دنیا کی 10 بہترین زرعی جامعات", RANKING.name)}</p>
         <ol className="list">
-          {CENTERS.map((c) => <li key={c.id}><a href={c.web} target="_blank" rel="noopener noreferrer">{pick(lang, c.name_ur, c.name_en)}</a> <span className="muted">· {pick(lang, c.country_ur, c.country_en)}</span></li>)}
+          {CENTERS.map((c) => <li key={c.id}>{pick(lang, c.name_ur, c.name_en)} <span className="muted">· {pick(lang, c.country_ur, c.country_en)}</span></li>)}
         </ol>
       </details>
     </div>
@@ -72,7 +70,7 @@ export function ImportGuide({ lang }) {
         <h3 className="sec-title">{pick(lang, "متعلقہ ادارے", "Who to contact")}</h3>
         <ul className="list">
           {IMPORT_CONTACTS.map((c) => (
-            <li key={c.name}><b className="latin">{c.name}</b> — {pick(lang, c.role_ur, c.role_en)}{c.web ? <> · <a href={c.web} target="_blank" rel="noopener noreferrer" className="latin">{c.web.replace(/^https?:\/\/(www\.)?/, "")}</a></> : null}</li>
+            <li key={c.name}><b className="latin">{c.name}</b> — {pick(lang, c.role_ur, c.role_en)}{c.web ? <> · <span className="latin">{c.web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</span></> : null}</li>
           ))}
         </ul>
       </section>

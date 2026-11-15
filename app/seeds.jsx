@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { tempSummary, ZONES } from "@/lib/seeds";
 import { CROPS } from "@/lib/seed-intel/crops";
+import { instById } from "@/lib/seed-intel/institutions";
 
 const pick = (lang, ur, en) => (lang === "ur" ? ur : en);
 const arr = (a) => (Array.isArray(a) ? a : []);
@@ -48,7 +49,8 @@ const diseaseUr = (xs, l) => {
     const x = String(raw).replace(/\(.*$/, "").replace(/based on.*$/i, "").replace(/prevailing races of/i, "").trim();
     if (!x) continue;
     const hit = DISEASE_UR.find(([re]) => re.test(x));
-    const t = l === "ur" ? (hit ? hit[1] : x) : x;
+    if (l === "ur" && !hit) continue; // no Urdu name known: leave it out rather than show English
+    const t = l === "ur" ? hit[1] : x;
     if (!out.includes(t)) out.push(t);
   }
   return out;
@@ -87,7 +89,7 @@ function Facts({ c, lang: l }) {
   const tol = [c.tol?.heat && pick(l, "گرمی", "heat"), c.tol?.drought && pick(l, "کم پانی / خشکی", "drought"), c.tol?.salt && pick(l, "کلر (نمکین زمین)", "salt"), c.tol?.flood && pick(l, "کھڑا پانی", "waterlogging"), c.tol?.cold && pick(l, "کورا / سخت سردی", "frost")].filter(Boolean);
   const mat = { early: pick(l, "جلد پکنے والی", "early"), medium: pick(l, "درمیانی", "medium"), late: pick(l, "دیر سے پکنے والی", "late") }[c.maturity];
   const habit = c.habit === "winter" ? pick(l, "ونٹر (سخت سردی مانگتی ہے)", "winter type (needs a cold winter)") : c.habit === "spring" ? pick(l, "اسپرنگ (ہلکی سردی میں ٹھیک)", "spring type (fine in mild winters)") : null;
-  const type = [habit, c.type ? pick(l, TYPE_UR[c.type.toLowerCase()] || c.type, c.type) : null].filter(Boolean).join("، ");
+  const type = [habit, c.type ? (l === "ur" ? TYPE_UR[c.type.toLowerCase()] : c.type) : null].filter(Boolean).join("، ");
   const mds = maunds(c.yieldNote);
   // "sucrose" in a wheat registration is a flour test, not sweetness
   const qual = arr(c.quality).filter((q) => q !== "sugar content" || ["sugarcane", "sugarbeet", "sorghum"].includes(c.crop));
@@ -98,7 +100,7 @@ function Facts({ c, lang: l }) {
     [pick(l, "پکنے کا وقت", "Maturity"), mat ? mat + (c.daysEarlier ? pick(l, ` (پرانی اقسام سے ${c.daysEarlier} دن پہلے)`, ` (${c.daysEarlier} days earlier than checks)`) : "") : NA(l), mat ? "" : "na"],
     [pick(l, "کیا برداشت کرتی ہے", "Tolerates"), tol.length ? tol.join("، ") : NA(l), tol.length ? "" : "na"],
     [pick(l, "قسم", "Type"), type || NA(l), type ? "" : "na"],
-    ...(qual.length ? [[pick(l, "معیار", "Quality"), qual.map((q) => pick(l, QUALITY_UR[q] || q, q)).join("، "), ""]] : []),
+    ...(qual.length ? [[pick(l, "معیار", "Quality"), qual.map((q) => (l === "ur" ? QUALITY_UR[q] : q)).filter(Boolean).join("، "), ""]] : []),
     [pick(l, "جاری ہونے کا سال", "Released"), c.released || c.year || NA(l), ""],
   ];
   return (
@@ -149,6 +151,45 @@ function Compare({ items, lang: l, onClose }) {
   );
 }
 
+// The institutions behind this crop's varieties, side by side: how many varieties, how many proven in weather
+// like the farmer's, best trial yield, most diseases resisted, newest release. Tap one to see only its varieties.
+function InstCompare({ list, lang: l, inst, setInst }) {
+  const by = new Map();
+  for (const c of list) for (const i of arr(c.institutions)) {
+    const r = by.get(i.id) || { id: i.id, n: 0, like: 0, best: null, dis: 0, newest: 0 };
+    r.n++; if ((c.climate?.sim ?? 0) >= 70) r.like++;
+    if (c.yieldPct > 0) r.best = Math.max(r.best || 0, c.yieldPct);
+    r.dis = Math.max(r.dis, diseaseUr(c.resistant, l).length);
+    r.newest = Math.max(r.newest, +(c.released || c.year) || 0);
+    by.set(i.id, r);
+  }
+  const rows = [...by.values()].map((r) => ({ ...r, def: instById(r.id) || {} }))
+    .sort((a, b) => b.like - a.like || b.n - a.n || (a.def.rank || 99) - (b.def.rank || 99)).slice(0, 10);
+  if (rows.length < 2) return null;
+  return (
+    <section className="sf-inst">
+      <h3 className="sec-title">{pick(l, "دنیا کے بڑے زرعی اداروں کا موازنہ", "Institutions compared")}</h3>
+      <div className="wx-table-wrap">
+        <table className="sf-cmp-t">
+          <thead><tr>
+            <th>{pick(l, "ادارہ", "Institution")}</th><th>{pick(l, "اقسام", "Varieties")}</th><th>{pick(l, "آپ جیسا موسم", "Weather like yours")}</th>
+            <th>{pick(l, "سب سے زیادہ پیداوار", "Best yield")}</th><th>{pick(l, "بیماریوں سے بچاؤ", "Diseases resisted")}</th><th>{pick(l, "نئی قسم", "Newest")}</th>
+          </tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr key={r.id} className={inst === r.id ? "on" : ""} onClick={() => setInst(inst === r.id ? null : r.id)} style={{ cursor: "pointer" }}>
+              <th><b>{pick(l, r.def.name_ur, r.def.name_en)}</b><br /><small>{pick(l, r.def.country_ur, r.def.country_en)}{r.def.rank ? pick(l, ` · دنیا میں نمبر ${r.def.rank}`, ` · world no. ${r.def.rank}`) : ""}</small></th>
+              <td className="num">{r.n}</td><td className="num">{r.like}</td>
+              <td>{r.best ? pick(l, `${r.best}٪ زیادہ`, `+${r.best}%`) : "–"}</td>
+              <td className="num">{r.dis || "–"}</td><td className="num">{r.newest || "–"}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <p className="hint" style={{ margin: "6px 0 0" }}>{inst ? pick(l, "نیچے صرف اسی ادارے کی اقسام ہیں۔ دوبارہ دبائیں تو سب نظر آئیں گی۔", "Showing only this institution's varieties. Tap again for all.") : pick(l, "کسی ادارے پر دبائیں تو نیچے صرف اس کی اقسام نظر آئیں گی۔", "Tap an institution to see only its varieties.")}</p>
+    </section>
+  );
+}
+
 export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport }) {
   const dir = lang === "ur" ? "rtl" : "ltr";
   const temps = useMemo(() => tempSummary(wx), [wx]);
@@ -161,6 +202,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
   const [filters, setFilters] = useState([]);
   const [cmp, setCmp] = useState([]);
   const [showCmp, setShowCmp] = useState(false);
+  const [inst, setInst] = useState(null);
 
   useEffect(() => {
     const c = LS.get("kd-seed-counts");
@@ -171,7 +213,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
   useEffect(() => {
     if (!crop || !coords) return;
     const q = new URLSearchParams({ crop, lat: coords.lat, lon: coords.lon, zone, band: temps?.band || "" });
-    setState("loading"); setOpen(null); setCmp([]); setShowCmp(false); setFilters([]);
+    setState("loading"); setOpen(null); setCmp([]); setShowCmp(false); setFilters([]); setInst(null);
     fetch(`/api/seeds?${q}`).then((r) => r.json()).then((d) => { setData(d); setState(d.error ? "error" : "ok"); }).catch(() => setState("error"));
   }, [crop, coords?.lat, coords?.lon, zone, temps?.band]);
 
@@ -181,7 +223,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
   const list = arr(data?.candidates);
   const toggle = (k) => setFilters((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
   const tick = (id) => setCmp((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id].slice(-3)));
-  const view = list.filter((c) => filters.every((k) => FILTERS[k].f(c))).sort(SORTS[sort].f);
+  const view = list.filter((c) => filters.every((k) => FILTERS[k].f(c)) && (!inst || arr(c.institutions).some((i) => i.id === inst))).sort(SORTS[sort].f);
   const shown = CROPS.filter((c) => !counts || counts[c.id] > 0 || c.id === crop);
 
   return (
@@ -219,6 +261,8 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
         : !list.length ? <p className="status">{pick(lang, "اس فصل کی کوئی رجسٹرڈ قسم ابھی ہمارے پاس نہیں۔ اپنے علاقے کی منظور شدہ قسم ہی کاشت کریں۔", "We have no registered variety for this crop yet. Sow your area's approved variety.")}</p>
         : (
           <>
+            <InstCompare list={list} lang={lang} inst={inst} setInst={setInst} />
+
             <section className="sf-tools">
               <div className="sf-row">
                 <label className="sf-sort">{pick(lang, "ترتیب", "Sort")}
@@ -276,16 +320,17 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
 }
 
 function Where({ c, lang, goImport }) {
+  const by = arr(c.institutions).map((i) => pick(lang, i.name_ur, i.name_en)).join("، ");
   return (
     <div className="sf-where">
       <b>{pick(lang, "بیج کہاں سے ملے گا", "Where to get it")}</b>
       <ul>
-        {c.seller?.name ? <li>{pick(lang, "بیج / لائسنس", "Seed / licence")}: {c.seller.url ? <a href={c.seller.url} target="_blank" rel="noopener noreferrer" className="latin">{c.seller.name} ↗</a> : <span className="latin">{c.seller.name}</span>}</li> : null}
+        {by ? <li>{pick(lang, "تیار کرنے والا ادارہ", "Developed by")}: {by}</li> : null}
+        {c.seller?.name && !arr(c.institutions).some((i) => i.name_en === c.seller.name) ? <li>{pick(lang, "تصدیق شدہ بیج / لائسنس", "Certified seed / licence")}: <span className="latin">{c.seller.name}</span></li> : null}
         {c.pakistan === "registered" || c.pakistan === "sold"
           ? <li className="g">{pick(lang, "پاکستان میں دستیاب", "Available in Pakistan")}{lang !== "ur" && c.pakistanNote ? `: ${c.pakistanNote}` : ""}</li>
-          : <li>{pick(lang, "پاکستان میں منگوانا ہو تو: ", "To bring it to Pakistan: ")}<button type="button" className="linkbtn" onClick={goImport}>{pick(lang, "درآمد کا طریقہ", "import steps")}</button></li>}
-        {c.pi ? <li>{pick(lang, "تجربے کے لیے تھوڑا بیج (امریکی سرکاری جین بینک)", "Small trial sample (US government gene bank)")}: <a href="https://npgsweb.ars-grin.gov/gringlobal/search" target="_blank" rel="noopener noreferrer" className="latin">PI {c.pi} ↗</a></li> : null}
-        <li><a href={c.link} target="_blank" rel="noopener noreferrer">{pick(lang, "اصل رجسٹریشن (انگریزی)", "Original registration (English)")} ↗</a></li>
+          : <li>{pick(lang, "پاکستان میں ابھی دستیاب نہیں؛ منگوانے کا طریقہ: ", "Not yet in Pakistan; to bring it: ")}<button type="button" className="linkbtn" onClick={goImport}>{pick(lang, "درآمد کا طریقہ", "import steps")}</button></li>}
+        {c.regNo ? <li>{pick(lang, "سرکاری رجسٹریشن نمبر", "Registration no.")}: <span className="latin">{c.regNo}</span>{c.pi ? <> · {pick(lang, "جین بینک نمبر", "Gene bank no.")} <span className="latin">PI {c.pi}</span></> : null}</li> : null}
       </ul>
     </div>
   );

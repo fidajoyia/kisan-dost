@@ -439,3 +439,6 @@ body{padding-bottom:0}
 .scheme-h b{font-size:1.05rem;line-height:1.7} .scheme-h span{font-size:1.3rem;color:var(--muted)}
 .scheme p{margin:4px 0 0;font-size:.94rem}
 .schemes{gap:10px}
+.sf-inst .sf-cmp-t tr.on th,.sf-inst .sf-cmp-t tr.on td{background:var(--leaf-soft)}
+.sf-inst .sf-cmp-t td{text-align:center}
+.sf-inst .sf-cmp-t th small{color:var(--muted);font-weight:400}
