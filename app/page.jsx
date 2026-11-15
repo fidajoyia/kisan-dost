@@ -286,7 +286,7 @@ export default function Home() {
                   </ol>
                   {camInputs(false)}
                   {err ? <p className="board-err" role="alert">{err}</p> : null}
-                  <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔ انٹرنیٹ کے بغیر بھی چلتا ہے۔</p>
+                  <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔ فصلیں، سبزیاں، پھل دار درخت، نیم، شہتوت اور گلاب۔ انٹرنیٹ کے بغیر بھی چلتا ہے۔</p>
                 </section>
                 <TrainedCrops />
                 {floodHot ? null : floodCard}

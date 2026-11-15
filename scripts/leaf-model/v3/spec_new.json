@@ -1,0 +1,277 @@
+[
+{
+"crop": "onion",
+"ds": "COLD_onion_leaf_disease_classification",
+"cfg": "raw",
+"n": 815,
+"map": {
+"Iris yellow virus": "Iris Yellow Virus",
+"Stemphylium leaf blight and collectrichum leaf blight": "Leaf Blight",
+"healthy": "Healthy",
+"purple blotch": "Purple Blotch"
+}
+},
+{
+"crop": "chili",
+"ds": "COLD_chili_leaf_disease_classification",
+"cfg": "raw",
+"n": 532,
+"map": {
+"cercospora": "Cercospora Leaf Spot",
+"healthy": "Healthy",
+"mites_and_trips": "Mites and Thrips",
+"nutritional": "Nutrient Deficiency",
+"powdery mildew": "Powdery Mildew"
+}
+},
+{
+"crop": "banana",
+"ds": "banana_leaf_disease_classification",
+"cfg": "default",
+"n": 1288,
+"map": {
+"healthy": "Healthy",
+"segatoka": "Sigatoka",
+"xamthomonas": "Xanthomonas Wilt"
+}
+},
+{
+"crop": "grape",
+"ds": "grape_leaf_disease_classification",
+"cfg": "default",
+"n": 2726,
+"map": {
+"Bacterial Leaf Spot": "Bacterial Leaf Spot",
+"Downy Mildew": "Downy Mildew",
+"Healthy Leaves": "Healthy",
+"Powdery Mildew": "Powdery Mildew"
+}
+},
+{
+"crop": "apple",
+"ds": "apple_leaf_disease_classification",
+"cfg": "default",
+"n": 5612,
+"map": {
+"Alternaria": "Alternaria",
+"Apple_Mosaic": "Mosaic",
+"Healthy": "Healthy"
+}
+},
+{
+"crop": "lentil",
+"ds": "lentil_disease_classification",
+"cfg": "default",
+"n": 5349,
+"map": {
+"Ascochyta blight": "Ascochyta Blight",
+"Lentil Rust": "Rust",
+"Normal": "Healthy",
+"Powdery Mildew": "Powdery Mildew"
+}
+},
+{
+"crop": "mulberry",
+"ds": "mulberry_leaf_variety_classification",
+"cfg": "default",
+"n": 5262,
+"map": {
+"BlackAustralia": "Healthy",
+"BlackOodTurkey": "Healthy",
+"Buriram60": "Healthy",
+"ChiangMai60": "Healthy",
+"ChiangMaiBuriram60": "Healthy",
+"Kamphaengsaeng42": "Healthy",
+"RedKing": "Healthy",
+"TaiwanMeacho": "Healthy",
+"TaiwanStraberry": "Healthy",
+"WhiteKing": "Healthy"
+}
+},
+{
+"crop": "jamun",
+"ds": "java_plum_leaf_disease_classification",
+"cfg": "default",
+"n": 2400,
+"map": {
+"Bacterial_Spot": "Bacterial Spot",
+"Brown_Blight": "Brown Blight",
+"Healthy": "Healthy",
+"Powdery_Mildew": "Powdery Mildew",
+"Sooty_Mold": "Sooty Mould"
+}
+},
+{
+"crop": "neem",
+"ds": "medicinal_leaf_species_classification",
+"cfg": "raw",
+"n": 1380,
+"map": {
+"Neem Leaf": "Healthy"
+}
+},
+{
+"crop": "arjun",
+"ds": "medicinal_leaf_species_classification",
+"cfg": "raw",
+"n": 1380,
+"map": {
+"Arjun Leaf": "Healthy"
+}
+},
+{
+"crop": "datepalm",
+"ds": "date_palm_leaf_disease_classification",
+"cfg": "default",
+"n": 3089,
+"map": {
+"Black Scorch": "Black Scorch",
+"Fusarium Wilt": "Fusarium Wilt",
+"Healthy sample": "Healthy",
+"Leaf Spots": "Leaf Spot",
+"Magnesium Deficiency": "Magnesium Deficiency",
+"Manganese Deficiency": "Manganese Deficiency",
+"Parlatoria Blanchardi": "Scale Insect",
+"Potassium Deficiency": "Potassium Deficiency",
+"Rachis Blight": "Rachis Blight"
+}
+},
+{
+"crop": "spinach",
+"ds": "IDDMSLD_spinach_leaf_disease_classification",
+"cfg": "default",
+"n": 3006,
+"map": {
+"Anthracnose": "Anthracnose",
+"Bacterial-Spot": "Bacterial Spot",
+"Downy-Mildew": "Downy Mildew",
+"Healthy-Leaf": "Healthy",
+"Pest-Damage": "Pest Damage"
+}
+},
+{
+"crop": "citrus",
+"ds": "lemon_leaf_disease_classification",
+"cfg": "raw",
+"n": 1354,
+"map": {
+"Anthracnose": "Anthracnose",
+"Bacterial Blight": "Bacterial Blight",
+"Citrus Canker": "canker",
+"Curl Virus": "Leaf Curl",
+"Deficiency Leaf": "Nutrient Deficiency",
+"Healthy Leaf": "Healthy",
+"Sooty Mould": "Sooty Mould",
+"Spider Mites": "Spider Mites"
+}
+},
+{
+"crop": "radish",
+"ds": "radish_leaf_disease_classification",
+"cfg": "default",
+"n": 2801,
+"map": {
+"Black leaf spot": "Black Leaf Spot",
+"Downey mildew": "Downy Mildew",
+"Fresh leaf": "Healthy",
+"Mosaic virus": "Mosaic Virus",
+"flea beetle": "Flea Beetle"
+}
+},
+{
+"crop": "brinjal",
+"ds": "eggplant_leaf_disease_classification",
+"cfg": "raw",
+"n": 3116,
+"map": {
+"Aphids": "Aphids",
+"Cercospora Leaf Spot": "Cercospora Leaf Spot",
+"Flea Beetles": "Flea Beetle",
+"Fresh Eggplant Leaf": "Healthy",
+"Leaf Wilt": "Wilt",
+"Phytophthora Blight": "Phytophthora Blight",
+"Powdery Mildew": "Powdery Mildew",
+"Tobacco Mosaic Virus": "Mosaic Virus"
+}
+},
+{
+"crop": "groundnut",
+"ds": "groundnut_leaf_disease_classification",
+"cfg": "default",
+"n": 1720,
+"map": {
+"ALTERNARIA LEAF SPOT": "Alternaria Leaf Spot",
+"HEALTHY": "Healthy",
+"LEAF SPOT": "Leaf Spot",
+"ROSETTE": "Rosette Virus",
+"RUST": "Rust"
+}
+},
+{
+"crop": "rose",
+"ds": "RoseNet_leaf_disease_classification",
+"cfg": "raw",
+"n": 917,
+"map": {
+"Black Spot": "Black Spot",
+"Downy Mildew": "Downy Mildew",
+"Fresh Leaf": "Healthy"
+}
+},
+{
+"crop": "moringa",
+"ds": "MoringaLeafNet_disease_classification",
+"cfg": "raw",
+"n": 2817,
+"map": {
+"Bacterial Leaf Spot": "Bacterial Leaf Spot",
+"Cercospora Leaf Spot": "Cercospora Leaf Spot",
+"Healthy": "Healthy",
+"Yellow": "Yellowing"
+}
+},
+{
+"crop": "blackgram",
+"ds": "black_gram_disease_classification",
+"cfg": "default",
+"n": 4038,
+"cap": 200,
+"map": {
+"Cercospora leaf spot": "Cercospora Leaf Spot",
+"Healthy": "Healthy",
+"Insect": "Insect Damage",
+"Leaf Crinkle": "Leaf Crinkle Virus",
+"Yellow Mosaic": "Yellow Mosaic"
+}
+},
+{
+"crop": "sunflower",
+"ds": "sunflower_disease_classification",
+"cfg": "default",
+"n": 2358,
+"cap": 200,
+"map": {
+"Downy_mildew": "Downy Mildew",
+"Fresh_leaf": "Healthy",
+"Gray_mold": "Gray Mould",
+"Leaf_scars": "Leaf Scars"
+}
+},
+{
+"crop": "guava",
+"ds": "guava_disease_classification",
+"cfg": "raw",
+"n": 3049,
+"cap": 200,
+"leaf_only": true,
+"map": {
+"Anthracnose": "Anthracnose",
+"Canker": "Canker",
+"Dot": "Dot",
+"Healthy": "Healthy",
+"Rust": "Rust",
+"Scab": "Scab",
+"Styler end root": null
+}
+}
+]

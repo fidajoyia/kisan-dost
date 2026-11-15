@@ -395,3 +395,5 @@ body{padding-bottom:0}
 .hw-bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}
 .hw-bar i{display:block;height:100%;background:var(--nehar);border-radius:99px}
 .hw-canals{margin:6px 0 0;font-size:.86rem} .hw-canals span{color:var(--muted)}
+.tc-group{margin-top:8px}
+.tc-group h4{margin:0 0 4px;font-size:.88rem;color:var(--muted);font-weight:700}

@@ -1,6 +1,6 @@
 "use client";
 // Kisan Dost's own leaf model, run on the farmer's phone (no API, works on any browser with WebAssembly).
-// Model: DINOv2-small image features + our classifier trained on public field datasets of Pakistan's crops
+// Model: DINOv2-small image features + our classifier trained on public datasets of Pakistan's crops, fruit trees, trees and roses
 // (see /models/kisan-leaf-card.json for the classes and held-out test accuracy).
 import { KB, CROPS_UR, CROPS_EN, KIND_UR, SAFETY_UR } from "@/lib/leaf-kb";
 
@@ -25,8 +25,8 @@ export function warmLeafModel() {
     ort.env.wasm.wasmPaths = ORT_CDN;
     ort.env.wasm.numThreads = 1; // no cross-origin isolation on a normal page
     const [buf, lab] = await Promise.all([
-      fetch("/models/kisan-leaf-v2.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
-      fetch("/models/kisan-leaf-v2-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v3.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v3-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
     ]);
     session = await ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
     labels = Array.isArray(lab) ? lab : lab.labels; // v2: {labels, guard}
@@ -71,7 +71,7 @@ export async function diagnoseLocally(images, weather) {
 function notOurCrop() {
   return {
     source: "kisan-dost-model", is_plant: false,
-    image_note: "یہ تصویر ان فصلوں کے پتے کی نہیں لگتی جن کی ایپ جانچ کرتی ہے: گندم، چاول، مکئی، کپاس، گنا، ٹماٹر، آلو، آم اور کینو۔ صرف ایک پتے کی قریب سے، دن کی روشنی میں صاف تصویر لیں (پیچھے زمین یا ہاتھ ہو تو ٹھیک ہے)۔ غلط اندازے سے بچنے کے لیے ہم کوئی بیماری یا اسپرے نہیں بتا رہے۔",
+    image_note: "یہ تصویر ان پودوں کے پتے کی نہیں لگتی جن کی ایپ جانچ کرتی ہے (نیچے فہرست دیکھیں)۔ صرف ایک پتے کی قریب سے، دن کی روشنی میں صاف تصویر لیں (پیچھے زمین یا ہاتھ ہو تو ٹھیک ہے)۔ غلط اندازے سے بچنے کے لیے ہم کوئی بیماری یا اسپرے نہیں بتا رہے۔",
   };
 }
 
