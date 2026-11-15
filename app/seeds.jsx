@@ -186,28 +186,12 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
 
   return (
     <div className="stack seeds2" dir={dir}>
-      <section className="sf-ctx">
-        <div className="tempstrip">
-          <div><span>{pick(lang, "اگلے 14 دن اوسط", "14-day average")}</span><b className="num">{temps ? `${temps.mean14}°C` : "–"}</b></div>
-          <div><span>{pick(lang, "دن / رات", "Day / night")}</span><b className="num">{temps ? `${Math.round(temps.max14)}° / ${Math.round(temps.min14)}°` : "–"}</b></div>
-          <div><span>{pick(lang, "سردیوں کا اوسط", "Winter average")}</span><b className="num">{data?.ctx?.winterMean != null ? `${data.ctx.winterMean}°C` : "–"}</b></div>
-        </div>
-        <div className="zone-switch" role="group" aria-label={pick(lang, "زمین کی قسم", "Land type")}>
-          {Object.keys(ZONES).map((z) => (
-            <button key={z} type="button" aria-pressed={zone === z} onClick={() => setZone(z)}>
-              <span>{pick(lang, ZONES[z].ur, ZONES[z].en)}</span>
-              {guess?.zone === z ? <em>{pick(lang, "خودکار اندازہ", "auto guess")}</em> : null}
-            </button>
-          ))}
-        </div>
-      </section>
-
       <section>
         <h3 className="sec-title">{pick(lang, "فصل منتخب کریں", "Choose crop")}</h3>
         <div className="sf-crops" role="tablist">
           {shown.map((c) => (
             <button key={c.id} type="button" role="tab" aria-selected={crop === c.id} onClick={() => choose(c.id)}>
-              {pick(lang, c.ur, c.en)}{counts?.[c.id] ? <span className="num">{counts[c.id]}</span> : null}
+              {pick(lang, c.ur, c.en)}
             </button>
           ))}
         </div>
@@ -217,6 +201,16 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
             {{ now: pick(lang, "ابھی کاشت کریں ✓", "sow now ✓"), hot: pick(lang, "موسم ابھی گرم ہے، چند دن رکیں", "still too warm, wait a few days"), cold: pick(lang, "موسم ابھی ٹھنڈا ہے، رکیں", "still too cold, wait"), soon: pick(lang, `${sow.days} دن میں کاشت شروع`, `starts in ${sow.days} days`), later: pick(lang, "اس موسم میں نہیں", "not this season") }[sow.state]}
           </p>
         ) : null}
+      </section>
+      <section>
+        <h3 className="sec-title">{pick(lang, "آپ کی زمین", "Your land")}</h3>
+        <div className="zone-switch" role="group" aria-label={pick(lang, "زمین کی قسم", "Land type")}>
+          {Object.keys(ZONES).map((z) => (
+            <button key={z} type="button" aria-pressed={zone === z} onClick={() => setZone(z)}>
+              <span>{pick(lang, ZONES[z].ur, ZONES[z].en)}</span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {!coords ? <p className="status">{pick(lang, "لوکیشن ملتے ہی آپ کے علاقے کے مطابق بیج دکھائے جائیں گے۔", "Seeds for your area appear once your location is available.")}</p>

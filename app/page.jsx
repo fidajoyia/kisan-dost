@@ -7,6 +7,7 @@ import { SeedFinder } from "./seeds";
 import { FloodOutlook, FloodCard } from "./flood";
 import { TrainedCrops } from "./crops";
 import { WaterScreen } from "./water";
+import { MandiRates, Schemes } from "./mandi";
 import { diagnoseLocally, warmLeafModel } from "./leaf-local";
 
 const LS = {
@@ -56,7 +57,10 @@ export default function Home() {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState("alerts"); // alerts | seeds | research | import
+  const [tab, setTab] = useState("alerts"); // alerts (home) | weather | flood (water) | seeds | mandi
+  const [mandi, setMandi] = useState(null);
+  const [mandiState, setMandiState] = useState("idle");
+  const [mandiTry, setMandiTry] = useState(0);
   const [soil, setSoil] = useState(null);   // automatic land-type guess
   const [zone, setZoneState] = useState(null);
   const [research, setResearch] = useState(null);
@@ -114,7 +118,7 @@ export default function Home() {
   // 4. Land type (normal / sem / rait): SoilGrids + district lists; the farmer can override.
   useEffect(() => {
     setZoneState(LS.get("kd-zone"));
-    const t = LS.get("kd-tab"); if (t && t !== "alerts") setTab(t);
+    const t = LS.get("kd-tab"); if (["weather", "flood", "water", "seeds", "mandi"].includes(t)) setTab(t);
   }, []);
   useEffect(() => {
     if (!coords) return;
@@ -166,6 +170,24 @@ export default function Home() {
       .then((d) => { setWater(d); setWaterState(d.error ? "error" : "ok"); if (!d.error) LS.set(key, { t: Date.now(), d }); })
       .catch(() => setWaterState("error"));
   }, [tab, coords, waterTry]);
+
+  // 7. Mandi rates at the nearest government market (cached here for 3 h).
+  useEffect(() => {
+    if (!coords) return;
+    const key = `kd-mandi:${coords.lat.toFixed(1)},${coords.lon.toFixed(1)}`;
+    const c = LS.get(key);
+    if (c && Date.now() - c.t < 3 * 3600e3 && !mandiTry) { setMandi(c.d); setMandiState("ok"); return; }
+    setMandiState("loading");
+    fetch(`/api/mandi?lat=${coords.lat}&lon=${coords.lon}`).then((r) => r.json())
+      .then((d) => { setMandi(d); setMandiState(d.error ? "error" : "ok"); if (!d.error) LS.set(key, { t: Date.now(), d }); })
+      .catch(() => { setMandi(null); setMandiState("error"); });
+  }, [coords, mandiTry]);
+
+  // open a screen, optionally scrolled to one of its parts
+  function go(t, anchor) {
+    openTab(t);
+    setTimeout(() => { const el = anchor && document.getElementById(anchor); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); else window.scrollTo({ top: 0 }); }, 60);
+  }
 
   function openTab(t) {
     if (tab === "research" && t !== "research") setNewIds(new Set()); // seen once you leave the tab
@@ -258,11 +280,23 @@ export default function Home() {
 
       <main className="screen" id="sheet-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} ref={resultRef}>
         <Safe resetKey={`${tab}|${lang}|${result ? 1 : 0}`}>
-          {tab === "flood" ? <Screen bare title="سیلاب کا خطرہ" sub={placeLabel || "دریا، ڈیم اور آنے والے 7 مہینے"}><FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} /></Screen>
-            : tab === "seeds" ? <Screen title="بیج مشورہ" sub="آپ کے موسم کے مطابق، دنیا کے بہترین اداروں سے"><SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => openTab("import")} /></Screen>
-            : tab === "research" ? <Screen bare title="نئی تحقیق" sub="آپ کی فصلوں پر دنیا کی بہترین زرعی جامعات سے"><ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} onRetry={() => setResTry((n) => n + 1)} /></Screen>
+          {tab === "flood" ? <Screen bare title="سیلاب کا خطرہ" sub={placeLabel || "دریا، ڈیم اور آنے والے 7 مہینے"}><FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} /><button type="button" className="btn ghost" style={{ marginTop: 12 }} onClick={() => go("water")}>دریا، بیراج اور نہروں میں پانی دیکھیں ←</button></Screen>
+            : tab === "weather" ? <Screen bare title="موسم" sub={placeShort}><WeatherScreen wx={wx} wxState={wxState} outlook={outlook} outState={outState} /></Screen>
+            : tab === "seeds" ? (
+              <Screen bare title="بیج کا مشورہ" sub="آپ کے موسم اور زمین کے مطابق">
+                <div className="card"><SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => go("seeds", "import")} /></div>
+                <details className="card fold" id="research"><summary>دنیا کی نئی زرعی تحقیق{newIds.size ? <span className="badge-in num">{newIds.size}</span> : null}</summary><ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} onRetry={() => setResTry((n) => n + 1)} /></details>
+                <details className="card fold" id="import"><summary>بیج باہر سے منگوانے کا طریقہ</summary><ImportGuide lang={lang} /></details>
+              </Screen>
+            )
+            : tab === "mandi" ? (
+              <Screen bare title="منڈی اور سرکاری اسکیمیں">
+                <div className="card"><MandiRates data={mandi} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : mandiState} onRetry={() => setMandiTry((n) => n + 1)} /></div>
+                <h3 className="sec-title" id="schemes">کسانوں کے لیے سرکاری اسکیمیں</h3>
+                <Schemes />
+              </Screen>
+            )
             : tab === "water" ? <Screen bare title="دریا، بیراج اور نہریں" sub="ہر ہیڈ ورکس پر پانی کی آمد اور نہروں میں پانی"><WaterScreen data={water} state={waterState} lang={lang} onRetry={() => setWaterTry((n) => n + 1)} /></Screen>
-            : tab === "import" ? <Screen title="بیج کی درآمد" sub="باہر سے بیج منگوانے کا قانونی طریقہ"><ImportGuide lang={lang} /></Screen>
             : busy ? <div className="card"><div className="thinking"><div className="spin" /><span>تصویر کا معائنہ ہو رہا ہے… چند سیکنڈ</span></div></div>
             : result ? (
               <div className="stack">
@@ -278,8 +312,8 @@ export default function Home() {
               <div className="stack">
                 {floodHot ? floodCard : null}
                 <section className="hero">
-                  <h2>اپنی فصل کا معائنہ کریں</h2>
-                  <ol className="steps">
+                  <h2>پتے کی تصویر سے بیماری اور دوا</h2>
+                  <ol className="hero-steps">
                     <li><Ico.camera /><span>پتے کی تصویر</span></li>
                     <li><Ico.search /><span>بیماری کی پہچان</span></li>
                     <li><Ico.spray /><span>صحیح دوا</span></li>
@@ -288,21 +322,19 @@ export default function Home() {
                   {err ? <p className="board-err" role="alert">{err}</p> : null}
                   <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔ فصلیں، سبزیاں، پھل دار درخت، نیم، شہتوت اور گلاب۔ انٹرنیٹ کے بغیر بھی چلتا ہے۔</p>
                 </section>
+                <Tiles wx={wx} wxState={wxState} outlook={outlook} flood={flood} mandi={mandi} go={go} />
                 <TrainedCrops />
-                {floodHot ? null : floodCard}
-                <Safe resetKey={wxState}><WeatherPanel wx={wx} wxState={wxState} outlook={outlook} /></Safe>
-                <Alerts outlook={outlook} state={outState} />
-                <p className="foot">یہ ایپ مشورہ دیتی ہے، حتمی تشخیص نہیں۔ کیمیائی دوا سے پہلے محکمہ زراعت (توسیع) یا زرعی ماہر سے تصدیق کریں اور مقدار لیبل کے مطابق رکھیں۔ موسم: Open-Meteo · مقام: OpenStreetMap · سیلاب: ECMWF، فیڈرل فلڈ کمیشن، بھارتی CWC · تحقیق: دنیا کی 10 بہترین زرعی جامعات۔</p>
+                <p className="foot">یہ ایپ مشورہ دیتی ہے۔ کوئی بھی دوا لگانے سے پہلے محکمہ زراعت کے فیلڈ اسسٹنٹ سے تصدیق کر لیں۔</p>
               </div>
             )}
         </Safe>
       </main>
 
       <nav className="bottomnav" role="tablist" aria-label="حصے">
-        {[["alerts", "معائنہ", Ico.leaf], ["flood", "سیلاب", Ico.water], ["water", "نہریں", Ico.canal], ["seeds", "بیج", Ico.sprout], ["research", "تحقیق", Ico.book]].map(([k, l, I]) => (
-          <button key={k} id={`tab-${k}`} role="tab" type="button" aria-selected={tab === k} aria-controls="sheet-panel" onClick={() => { openTab(k); window.scrollTo({ top: 0 }); }}>
+        {[["alerts", "معائنہ", Ico.leaf], ["weather", "موسم", Ico.sun], ["flood", "پانی", Ico.water], ["seeds", "بیج", Ico.sprout], ["mandi", "منڈی", Ico.market]].map(([k, l, I]) => (
+          <button key={k} id={`tab-${k}`} role="tab" type="button" aria-selected={tab === k || (k === "flood" && tab === "water")} aria-controls="sheet-panel" onClick={() => { if (k === "alerts") { setResult(null); } openTab(k); window.scrollTo({ top: 0 }); }}>
             <span className="bn-ico"><I />
-              {k === "research" && newIds.size && tab !== "research" ? <i className="badge num">{newIds.size}</i> : null}
+              {k === "weather" && arr(outlook?.alerts).some((a) => a.level === "high") && tab !== "weather" ? <i className="badge">!</i> : null}
               {k === "flood" && floodHot && tab !== "flood" ? <i className="badge">!</i> : null}
             </span>
             <span className="bn-lbl">{l}</span>
@@ -338,89 +370,102 @@ const Ico = {
   back: svg(<path d="m9 6 6 6-6 6" />),
   drop: svg(<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z" />),
   canal: svg(<><path d="M4 4v16M20 4v16" /><path d="M4 9h16M4 15h16" /><path d="M7 12c1.5-1 3.5-1 5 0s3.5 1 5 0" /></>),
+  sun: svg(<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>),
+  market: svg(<><path d="M4 10h16l-1.5-5h-13L4 10Z" /><path d="M5 10v9h14v-9" /><path d="M10 19v-5h4v5" /></>),
+  dam: svg(<><path d="M3 20h18" /><path d="M6 20V8l4-3v15" /><path d="M10 12c2 1 4 1 6 0s3-1 5 0" /><path d="M10 16c2 1 4 1 6 0s3-1 5 0" /></>),
+  alert: svg(<><path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v4M12 17v.01" /></>),
+  scheme: svg(<><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></>),
 };
 
-function WeatherPanel({ wx, wxState, outlook }) {
-  if (wxState !== "ok") {
-    return <section className="card"><h3 className="card-title">موسم</h3>
-      <p className="status">{wxState === "error" ? "لائیو موسم ابھی نہیں مل سکا۔" : "لوکیشن ملتے ہی آپ کے کھیت کا موسم یہاں آ جائے گا۔"}</p></section>;
-  }
+const IRR_SOIL = { irrigate_now: "زمین خشک ہو چکی ہے", irrigate_soon: "زمین میں نمی کم ہو رہی ہے", wait_rain: "زمین میں نمی ٹھیک ہے", not_needed: "زمین میں نمی کافی ہے" };
+const rainWord = (mm, future) => (mm == null ? "–" : mm < 1 ? (future ? "بارش کا امکان نہیں" : "بارش نہیں ہوئی") : mm < 5 ? (future ? "ہلکی بارش کا امکان" : "ہلکی بارش ہوئی") : mm < 25 ? (future ? "اچھی بارش کا امکان" : "اچھی بارش ہوئی") : (future ? "تیز بارش کا امکان" : "تیز بارش ہوئی"));
+
+// Points 5 and 6: weather warnings, rain and soil moisture
+function WeatherScreen({ wx, wxState, outlook, outState }) {
+  if (wxState !== "ok") return <div className="card"><p className="status">{wxState === "error" ? "موسم ابھی نہیں مل سکا۔ تھوڑی دیر بعد دوبارہ کھولیں۔" : "جگہ ملتے ہی موسم یہاں آ جائے گا۔"}</p></div>;
   const [cls, label] = IRR[wx.irrigation?.need] || IRR.unknown;
   const next = arr(wx.days).filter((d) => !d.past).slice(0, 7);
   const dayName = (d) => (d.date === wx.today ? "آج" : new Date(d.date + "T00:00").toLocaleDateString("ur-PK", { weekday: "short" }));
   return (
-    <section className="card wx">
-      <div className="wx-head">
-        <div className="wx-temp"><b className="num">{n0(wx.current?.temp)}°</b><span>{WMO(wx.current?.code)}</span></div>
-        <div className="wx-meta">
-          <span>نمی <b className="num">{n0(wx.current?.humidity)}%</b></span>
-          <span>{RAIN_STATUS[wx.rain?.status] || ""}</span>
+    <>
+      <section className="card wx">
+        <div className="wx-head">
+          <div className="wx-temp"><b className="num">{n0(wx.current?.temp)}°</b><span>{WMO(wx.current?.code)}</span></div>
+          <div className="wx-meta"><span>ہوا میں نمی <b className="num">{n0(wx.current?.humidity)}%</b></span></div>
         </div>
-      </div>
-      <div className={`irr2 ${cls}`}><Ico.drop /><b>{label}</b></div>
-      <div className="days7">
-        {next.map((d) => (
-          <div key={d.date} className={d.date === wx.today ? "today" : ""}>
-            <span>{dayName(d)}</span>
-            <b className="num">{n0(d.tmax)}°</b>
-            <small className="num">{n0(d.tmin)}°</small>
-            <i>{d.rain_mm ? <><Ico.drop />{d.rain_mm}</> : ""}</i>
-          </div>
-        ))}
-      </div>
-      <details className="more">
-        <summary>پورا موسم: 23 دن، بارش اور مٹی کی نمی</summary>
-        <p className="rainline">پچھلے 7 دن کی بارش: <span className="num">{wx.rain?.past7_mm} mm</span> · اگلے 7 دن: <span className="num">{wx.rain?.next7_mm} mm</span> · اگلے 16 دن: <span className="num">{wx.rain?.next16_mm} mm</span></p>
-        <p className="rainline">مٹی کی نمی (جڑوں تک): <span className="num">{wx.soil?.root_9_27cm != null ? Math.round(wx.soil.root_9_27cm * 100) + "%" : "–"}</span>{outlook?.irrigation ? ` · ${outlook.irrigation}` : ""}</p>
-        <div className="days" dir="rtl">
-          {arr(wx.days).map((d) => (
-            <div key={d.date} className={`day${d.past ? " past" : ""}${d.date === wx.today ? " today" : ""}`}>
-              <div>{d.date === wx.today ? "آج" : new Date(d.date + "T00:00").toLocaleDateString("ur-PK", { day: "numeric", month: "short" })}</div>
-              <b>{n0(d.tmax)}° / {n0(d.tmin)}°</b>
-              <div className="rain">{d.rain_mm ? `${d.rain_mm}mm` : "—"}</div>
+        <div className="days7">
+          {next.map((d) => (
+            <div key={d.date} className={d.date === wx.today ? "today" : ""}>
+              <span>{dayName(d)}</span>
+              <b className="num">{n0(d.tmax)}°</b>
+              <small className="num">{n0(d.tmin)}°</small>
+              <i>{d.rain_mm >= 1 ? <Ico.drop /> : ""}</i>
             </div>
           ))}
         </div>
-        {arr(outlook?.outlook_17_30).length ? <OutlookTable rows={outlook.outlook_17_30} /> : null}
-      </details>
-    </section>
+      </section>
+      <section className="card" id="warnings">
+        <h3 className="card-title">موسم کی وارننگ</h3>
+        <Alerts outlook={outlook} state={outState} />
+      </section>
+      <section className="card" id="rain">
+        <h3 className="card-title">بارش اور زمین کی نمی</h3>
+        <ul className="facts2">
+          <li><span>پچھلا ہفتہ</span><b>{rainWord(wx.rain?.past7_mm, false)}</b></li>
+          <li><span>اگلا ہفتہ</span><b>{rainWord(wx.rain?.next7_mm, true)}</b></li>
+          <li><span>زمین</span><b>{IRR_SOIL[wx.irrigation?.need] || "معلوم نہیں ہو سکا"}</b></li>
+        </ul>
+        <div className={`irr2 ${cls}`}><Ico.drop /><b>{label}</b></div>
+      </section>
+    </>
   );
 }
 
-function OutlookTable({ rows }) {
+// Home: the seven things the app does, each with today's answer in a few words
+function Tiles({ wx, wxState, outlook, flood, mandi, go }) {
+  const alerts = arr(outlook?.alerts);
+  const high = alerts.filter((a) => a.level === "high").length;
+  const fl = flood?.summary?.farm?.level;
+  const FL = { low: "خطرہ کم ہے", moderate: "درمیانہ خطرہ", high: "زیادہ خطرہ", severe: "بہت زیادہ خطرہ" };
+  const dw = flood?.summary?.farm?.water, tar = dw?.kind === "dam" ? dw.pct : null;
+  const pick1 = arr(mandi?.items).find((x) => /^Wheat$/i.test(x.name)) || arr(mandi?.items).find((x) => x.farm);
+  const tiles = [
+    ["weather", "warnings", Ico.alert, "موسم کی وارننگ", wxState !== "ok" ? "" : high ? `${high} بڑا خطرہ` : alerts.length ? `${alerts.length} احتیاط` : "کوئی خطرہ نہیں", high ? "bad" : ""],
+    ["weather", "rain", Ico.drop, "بارش اور زمین کی نمی", wxState === "ok" ? (IRR[wx.irrigation?.need] || IRR.unknown)[1] : "", "water"],
+    ["flood", null, Ico.water, "سیلاب کی وارننگ", fl ? FL[fl] : "", ["high", "severe"].includes(fl) ? "bad" : "water"],
+    ["water", null, Ico.dam, "ڈیم، دریا اور نہریں", tar != null ? `ڈیم ${Math.min(100, Math.round(tar))}٪ بھرا` : "بیراجوں پر پانی", "water"],
+    ["seeds", null, Ico.sprout, "بیج کا مشورہ", "آپ کے موسم کے مطابق", "leaf"],
+    ["mandi", null, Ico.market, "منڈی کے ریٹ", pick1 ? `${pick1.ur} ${Number(pick1.price).toLocaleString("en-US")} روپے من` : "آج کے ریٹ", "sun"],
+    ["mandi", "schemes", Ico.scheme, "سرکاری اسکیمیں", "کسان کارڈ، ٹریکٹر", "sun"],
+  ];
   return (
-    <div className="wx-table-wrap">
-      <table className="wx-table" style={{ minWidth: 0 }}>
-        <tbody>
-          {arr(rows).map((x, i) => (
-            <tr key={i}>
-              <td><b>{x.label}</b><br /><span style={{ fontSize: ".8rem", color: "var(--muted)" }}>{x.dates}</span></td>
-              <td className="num">{n0(x.tmin)}°–{n0(x.tmax)}°</td>
-              <td style={{ fontSize: ".85rem" }}>{x.note}{x.disease_risk ? <><br /><b style={{ color: "var(--bad)" }}>{x.disease_risk}</b></> : null}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="tiles">
+      {tiles.map(([t, anchor, I, title, line, c], i) => (
+        <button key={i} type="button" className={`tile t-${c}`} onClick={() => go(t, anchor)}>
+          <span className="tile-ico"><I /></span>
+          <b>{title}</b>
+          {line ? <small>{line}</small> : null}
+        </button>
+      ))}
     </div>
   );
 }
 
 function Alerts({ outlook, state }) {
-  if (state === "loading") return <div className="card"><div className="thinking"><div className="spin" /><span>آپ کے علاقے کی فصلوں کے لیے وارننگ تیار ہو رہی ہے…</span></div></div>;
-  if (state === "error") return <div className="card"><p className="status err">علاقے کی وارننگ ابھی نہیں مل سکی۔ تصویر سے معائنہ پھر بھی ہو سکتا ہے۔</p></div>;
-  if (!outlook || (!arr(outlook.alerts).length && !arr(outlook.farm_tips).length)) return null;
+  if (state === "loading") return <div className="thinking"><div className="spin" /><span>وارننگ تیار ہو رہی ہے…</span></div>;
+  if (state === "error") return <p className="status">وارننگ ابھی نہیں مل سکی۔</p>;
+  if (!outlook) return <p className="status">جگہ اور موسم ملتے ہی وارننگ یہاں آ جائے گی۔</p>;
   return (
-    <div className="card stack">
-      {arr(outlook.alerts).length ? <section>
-        <h3 className="card-title">آپ کے علاقے میں بیماری کا خطرہ <small>اگلے 16 دن</small></h3>
+    <div className="stack" style={{ gap: 14 }}>
+      {arr(outlook.alerts).length ? (
         <div className="risks">
           {arr(outlook.alerts).map((a, i) => {
             const L = ["high", "medium", "low"].includes(a.level) ? a.level : "medium";
             return <div className="risk" key={i}><span className={`pill ${L}`}>{LVL[L]}</span><h4>{a.crop}: {a.threat}</h4><p>{a.reason}</p>{a.action ? <div className="when">کیا کریں: {a.action}</div> : null}</div>;
           })}
         </div>
-      </section> : null}
-      {arr(outlook.farm_tips).length ? <section><h3 className="card-title">موسمی مشورے</h3><ul className="list">{arr(outlook.farm_tips).map((t, i) => <li key={i}>{t}</li>)}</ul></section> : null}
+      ) : null}
+      {arr(outlook.farm_tips).length ? <ul className="list">{arr(outlook.farm_tips).map((t, i) => <li key={i}>{t}</li>)}</ul> : null}
     </div>
   );
 }
@@ -519,7 +564,6 @@ function Result({ d, place }) {
         </section>
       ) : null}
 
-      {arr(d.outlook_17_30).length ? <section><h3 className="sec-title">دن 17 تا 30</h3><OutlookTable rows={d.outlook_17_30} /></section> : null}
 
       <section>
         <h3 className="sec-title">مزید علاج اور بچاؤ</h3>
@@ -534,7 +578,6 @@ function Result({ d, place }) {
 
       {arr(d.prevention).length ? <section><h3 className="sec-title">بچاؤ</h3><ul className="list">{arr(d.prevention).map((x, i) => <li key={i}>{x}</li>)}</ul></section> : null}
       {d.image_note ? <p className="note">تصویر کے بارے میں: {d.image_note}</p> : null}
-      {d.source === "kisan-dost-model" ? <p className="model-note">یہ تشخیص کسان دوست کے اپنے تربیت یافتہ ماڈل نے آپ کے فون پر کی ہے۔ حتمی فیصلے سے پہلے محکمہ زراعت کے فیلڈ اسسٹنٹ سے تصدیق کر لیں۔</p> : null}
     </div>
   );
 }
