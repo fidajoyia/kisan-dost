@@ -183,6 +183,20 @@ export default function Home() {
       .catch(() => { setMandi(null); setMandiState("error"); });
   }, [coords, mandiTry]);
 
+  // A page left open on the phone keeps running the old app (and old leaf model) after an update.
+  // On opening and whenever the app comes back to the screen, check the live version and reload once if it changed.
+  useEffect(() => {
+    const check = () => {
+      if (document.visibilityState !== "visible") return;
+      fetch("/api/version", { cache: "no-store" }).then((r) => r.json()).then(({ v }) => {
+        if (v && v !== process.env.APP_VERSION && sessionStorage.getItem("kd-reloaded") !== v) { sessionStorage.setItem("kd-reloaded", v); location.reload(); }
+      }).catch(() => {});
+    };
+    check();
+    document.addEventListener("visibilitychange", check);
+    return () => document.removeEventListener("visibilitychange", check);
+  }, []);
+
   // open a screen, optionally scrolled to one of its parts
   function go(t, anchor) {
     openTab(t);
