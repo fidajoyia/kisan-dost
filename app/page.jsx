@@ -473,6 +473,7 @@ function Alerts({ outlook, state }) {
 function Result({ d, place }) {
   const [tab, setTab] = useState("organic");
   if (d.is_plant === false) return <div className="notcrop"><b>یہ تصویر پہچانی نہیں جا سکی</b><p>{d.image_note || "پتے کی قریب سے واضح تصویر لیں۔"}</p></div>;
+  if (d.plant_only) return <div className="notcrop plantonly"><b>{d.plant?.name_local} <small className="num">{d.plant?.confidence}%</small></b><p>{d.image_note}</p></div>;
   const p = d.plant || {}, h = d.health || {}, t = d.treatment || {};
   const s = Math.max(0, Math.min(100, Number(h.score) || 0));
   const col = h.status === "healthy" ? "var(--ok)" : h.status === "early" ? "var(--warn)" : "var(--bad)";

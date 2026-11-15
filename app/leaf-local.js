@@ -25,8 +25,8 @@ export function warmLeafModel() {
     ort.env.wasm.wasmPaths = ORT_CDN;
     ort.env.wasm.numThreads = 1; // no cross-origin isolation on a normal page
     const [buf, lab] = await Promise.all([
-      fetch("/models/kisan-leaf-v3.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
-      fetch("/models/kisan-leaf-v3-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v4.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v4-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
     ]);
     session = await ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
     labels = Array.isArray(lab) ? lab : lab.labels; // v2: {labels, guard}
@@ -62,10 +62,27 @@ export async function diagnoseLocally(images, weather) {
   }
   // Not a leaf of a crop we check (a person, a wall, a leaf of another plant): say so, never name a disease.
   const other = labels.indexOf("other");
-  const order = [...probs.keys()].filter((i) => i !== other).sort((a, b) => probs[b] - probs[a]);
   if ((other >= 0 && probs[other] >= 0.5) || (guard != null && sim < guard)) return notOurCrop();
   const rest = 1 - (other >= 0 ? probs[other] : 0);
-  return buildResult(order.slice(0, 4).map((i) => ({ label: labels[i], p: probs[i] / rest })), weather);
+  // First which crop: add up all of a crop's classes. Then the best class inside that crop.
+  const cropP = {};
+  labels.forEach((l, i) => { if (i !== other) { const c = l.split("|")[0]; cropP[c] = (cropP[c] || 0) + probs[i] / rest; } });
+  const crop = Object.keys(cropP).sort((x, y) => cropP[y] - cropP[x])[0];
+  const mine = [...probs.keys()].filter((i) => i !== other && labels[i].startsWith(crop + "|")).sort((x, y) => probs[y] - probs[x]);
+  // "<crop>|_plant" = the model knows the plant from field photos but this is not a close leaf photo it can read a disease from
+  if (labels[mine[0]].endsWith("|_plant")) return plantOnly(crop, cropP[crop]);
+  const leaf = mine.filter((i) => !labels[i].endsWith("|_plant"));
+  const sum = leaf.reduce((t, i) => t + probs[i], 0) || 1;
+  return buildResult(leaf.slice(0, 4).map((i) => ({ label: labels[i], p: probs[i] / sum })), weather, cropP[crop]);
+}
+
+function plantOnly(crop, p) {
+  const name = CROPS_UR[crop] || crop;
+  return {
+    source: "kisan-dost-model", is_plant: true, plant_only: true,
+    plant: { name_local: name, name_en: CROPS_EN[crop] || crop, confidence: Math.round(Math.min(1, p) * 100) },
+    image_note: `یہ ${name} کا پودا لگتا ہے، مگر اس تصویر سے بیماری نہیں بتائی جا سکتی۔ بیماری جانچنے کے لیے صرف ایک پتے کی قریب سے، دن کی روشنی میں صاف تصویر لیں (پتا پوری تصویر میں نظر آئے)۔`,
+  };
 }
 
 function notOurCrop() {
@@ -75,14 +92,13 @@ function notOurCrop() {
   };
 }
 
-function buildResult(top, wx) {
+function buildResult(top, wx, cropAll) {
   const [best] = top;
   const [crop] = best.label.split("|");
   const kb = KB[best.label] || {};
   const conf = Math.round(best.p * 100);
   const sure = best.p >= 0.5;
-  // crop certainty = all probability on this crop's classes among the top results
-  const cropP = top.filter((x) => x.label.startsWith(crop + "|")).reduce((s, x) => s + x.p, 0);
+  const cropP = cropAll; // crop certainty = all probability on this crop's classes
   const healthy = kb.kind === "healthy";
   const alts = top.slice(1).filter((x) => x.p >= 0.08 && KB[x.label]).map((x) => ({ ...KB[x.label], crop: x.label.split("|")[0], p: Math.round(x.p * 100) }));
   const humid = wx?.current?.humidity, temp = wx?.current?.temp;

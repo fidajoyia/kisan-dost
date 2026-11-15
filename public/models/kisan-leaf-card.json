@@ -1,10 +1,10 @@
 {
- "name": "Kisan Dost leaf model v3",
+ "name": "Kisan Dost leaf model v4",
  "trained": "2026-11-15",
- "test_accuracy": 95.42,
- "crop_accuracy": 99.19,
+ "test_accuracy": 95.76,
+ "crop_accuracy": 99.85,
  "test_photos": 11367,
- "train_photos": 51187,
+ "train_photos": 59691,
  "classes": 151,
  "crops": [
   "apple",
@@ -43,70 +43,109 @@
  "tests": {
   "ORIG20": {
    "n": 5765,
-   "acc": 96.79,
-   "crop": 99.26,
-   "refused": 0.68,
+   "acc": 96.98,
+   "crop": 99.88,
+   "refused": 0.0,
    "per_crop": {
     "apple": 100.0,
-    "citrus": 95.0,
+    "citrus": 96.7,
     "cotton": 96.4,
     "grape": 100.0,
-    "maize": 93.4,
-    "mango": 99.7,
-    "other": 99.7,
-    "potato": 98.5,
-    "rice": 95.6,
-    "sugarcane": 90.2,
+    "maize": 92.8,
+    "mango": 100.0,
+    "other": 99.2,
+    "potato": 98.7,
+    "rice": 97.5,
+    "sugarcane": 89.2,
     "tomato": 99.6,
-    "wheat": 95.0
+    "wheat": 96.8
    }
   },
   "UNSEEN": {
    "n": 1421,
-   "acc": 98.1,
-   "crop": 99.37,
-   "refused": 0.49,
+   "acc": 98.59,
+   "crop": 99.93,
+   "refused": 0.0,
    "per_crop": {
-    "cotton": 98.6,
-    "maize": 96.2,
-    "mango": 99.7,
+    "cotton": 97.2,
+    "maize": 96.9,
+    "mango": 100.0,
     "rice": 96.7,
-    "sugarcane": 97.0,
-    "tomato": 99.0
+    "sugarcane": 98.3,
+    "tomato": 99.8
    }
   },
   "NEW20": {
    "n": 4181,
-   "acc": 92.61,
-   "crop": 99.04,
-   "refused": 0.84,
+   "acc": 93.11,
+   "crop": 99.78,
+   "refused": 0.02,
    "per_crop": {
-    "apple": 99.4,
+    "apple": 100.0,
     "arjun": 100.0,
-    "banana": 82.1,
-    "blackgram": 99.0,
-    "brinjal": 93.9,
-    "chili": 86.7,
-    "citrus": 99.6,
-    "datepalm": 91.7,
+    "banana": 85.4,
+    "blackgram": 99.5,
+    "brinjal": 92.5,
+    "chili": 83.8,
+    "citrus": 100.0,
+    "datepalm": 92.9,
     "grape": 99.0,
     "groundnut": 98.7,
-    "guava": 79.3,
+    "guava": 80.8,
     "jamun": 100.0,
-    "lentil": 86.2,
-    "moringa": 92.1,
+    "lentil": 87.1,
+    "moringa": 93.3,
     "mulberry": 98.3,
     "neem": 100.0,
-    "onion": 79.9,
+    "onion": 81.3,
     "radish": 100.0,
-    "rose": 95.6,
-    "spinach": 75.0,
-    "sunflower": 90.6
+    "rose": 96.9,
+    "spinach": 72.6,
+    "sunflower": 96.9
    }
+  },
+  "WILD20": {
+   "n": 2127,
+   "acc": 83.03,
+   "crop": 85.97,
+   "refused": 6.57,
+   "per_crop": {
+    "apple": 91.5,
+    "arjun": 73.3,
+    "banana": 77.4,
+    "brinjal": 96.6,
+    "chili": 91.7,
+    "citrus": 65.0,
+    "cotton": 90.0,
+    "datepalm": 90.0,
+    "grape": 90.0,
+    "groundnut": 91.8,
+    "guava": 91.5,
+    "jamun": 88.3,
+    "lentil": 95.2,
+    "maize": 83.3,
+    "mango": 88.3,
+    "moringa": 93.3,
+    "mulberry": 80.0,
+    "neem": 85.0,
+    "onion": 83.3,
+    "other plants refused": 76.7,
+    "potato": 93.3,
+    "radish": 93.3,
+    "rice": 90.0,
+    "rose": 35.0,
+    "spinach": 78.6,
+    "sugarcane": 91.7,
+    "sunflower": 98.3,
+    "tomato": 91.7,
+    "wheat": 90.0
+   },
+   "wrong_crop": 7.46,
+   "leaf_class_named": 1.72
   }
  },
- "refused_real_crop_photos_pct": 0.72,
- "other_class_correct_pct": 99.68,
+ "refused_real_crop_photos_pct": 0.01,
+ "other_class_correct_pct": 99.25,
  "sources": [
   "Spitblaze/Corn_or_Maize_Leaf_Disease_Dataset",
   "Project-AgML/rice_leaf_disease_classification",
@@ -139,7 +178,8 @@
   "Project-AgML/MoringaLeafNet_disease_classification (raw)",
   "Project-AgML/black_gram_disease_classification",
   "Project-AgML/sunflower_disease_classification",
-  "Project-AgML/guava_disease_classification (raw)"
+  "Project-AgML/guava_disease_classification (raw)",
+  "iNaturalist research-grade observations (CC-licensed phone photos of each plant in fields and gardens, and of other plants as 'other')"
  ],
  "per_class": {
   "apple|Alternaria": {
@@ -156,9 +196,9 @@
   },
   "apple|Mosaic": {
    "test_photos": 60,
-   "recall": 0.983,
+   "recall": 1.0,
    "precision": 1.0,
-   "f1": 0.991
+   "f1": 1.0
   },
   "arjun|Healthy": {
    "test_photos": 46,
@@ -168,27 +208,27 @@
   },
   "banana|Healthy": {
    "test_photos": 31,
-   "recall": 0.871,
-   "precision": 0.818,
-   "f1": 0.844
+   "recall": 0.935,
+   "precision": 0.784,
+   "f1": 0.853
   },
   "banana|Sigatoka": {
    "test_photos": 60,
-   "recall": 0.85,
-   "precision": 0.85,
-   "f1": 0.85
+   "recall": 0.883,
+   "precision": 0.869,
+   "f1": 0.876
   },
   "banana|Xanthomonas Wilt": {
    "test_photos": 60,
-   "recall": 0.767,
-   "precision": 0.836,
-   "f1": 0.8
+   "recall": 0.783,
+   "precision": 0.887,
+   "f1": 0.832
   },
   "blackgram|Cercospora Leaf Spot": {
    "test_photos": 40,
    "recall": 0.975,
-   "precision": 0.951,
-   "f1": 0.963
+   "precision": 0.975,
+   "f1": 0.975
   },
   "blackgram|Healthy": {
    "test_photos": 40,
@@ -198,9 +238,9 @@
   },
   "blackgram|Insect Damage": {
    "test_photos": 40,
-   "recall": 0.975,
-   "precision": 0.951,
-   "f1": 0.963
+   "recall": 1.0,
+   "precision": 0.952,
+   "f1": 0.975
   },
   "blackgram|Leaf Crinkle Virus": {
    "test_photos": 40,
@@ -216,21 +256,21 @@
   },
   "brinjal|Aphids": {
    "test_photos": 45,
-   "recall": 0.911,
-   "precision": 0.911,
-   "f1": 0.911
+   "recall": 0.867,
+   "precision": 0.907,
+   "f1": 0.887
   },
   "brinjal|Cercospora Leaf Spot": {
    "test_photos": 26,
-   "recall": 0.692,
-   "precision": 0.783,
-   "f1": 0.735
+   "recall": 0.731,
+   "precision": 0.864,
+   "f1": 0.792
   },
   "brinjal|Flea Beetle": {
    "test_photos": 60,
-   "recall": 0.917,
-   "precision": 0.887,
-   "f1": 0.902
+   "recall": 0.9,
+   "precision": 0.857,
+   "f1": 0.878
   },
   "brinjal|Healthy": {
    "test_photos": 51,
@@ -241,50 +281,50 @@
   "brinjal|Mosaic Virus": {
    "test_photos": 60,
    "recall": 1.0,
-   "precision": 0.938,
-   "f1": 0.968
+   "precision": 0.87,
+   "f1": 0.93
   },
   "brinjal|Phytophthora Blight": {
    "test_photos": 60,
-   "recall": 0.967,
-   "precision": 0.983,
-   "f1": 0.975
+   "recall": 0.95,
+   "precision": 1.0,
+   "f1": 0.974
   },
   "brinjal|Powdery Mildew": {
    "test_photos": 43,
-   "recall": 0.953,
-   "precision": 0.953,
-   "f1": 0.953
+   "recall": 0.884,
+   "precision": 1.0,
+   "f1": 0.938
   },
   "brinjal|Wilt": {
    "test_photos": 17,
-   "recall": 0.941,
-   "precision": 1.0,
-   "f1": 0.97
+   "recall": 1.0,
+   "precision": 0.895,
+   "f1": 0.945
   },
   "chili|Cercospora Leaf Spot": {
    "test_photos": 30,
    "recall": 0.867,
-   "precision": 0.963,
-   "f1": 0.912
+   "precision": 0.929,
+   "f1": 0.897
   },
   "chili|Healthy": {
    "test_photos": 14,
    "recall": 0.786,
-   "precision": 0.688,
-   "f1": 0.734
+   "precision": 0.647,
+   "f1": 0.71
   },
   "chili|Mites and Thrips": {
    "test_photos": 21,
-   "recall": 0.952,
-   "precision": 0.769,
-   "f1": 0.851
+   "recall": 0.857,
+   "precision": 0.75,
+   "f1": 0.8
   },
   "chili|Nutrient Deficiency": {
    "test_photos": 20,
-   "recall": 0.7,
-   "precision": 0.875,
-   "f1": 0.778
+   "recall": 0.65,
+   "precision": 0.812,
+   "f1": 0.722
   },
   "chili|Powdery Mildew": {
    "test_photos": 20,
@@ -295,8 +335,8 @@
   "citrus|Anthracnose": {
    "test_photos": 20,
    "recall": 1.0,
-   "precision": 0.952,
-   "f1": 0.975
+   "precision": 1.0,
+   "f1": 1.0
   },
   "citrus|Bacterial Blight": {
    "test_photos": 21,
@@ -312,9 +352,9 @@
   },
   "citrus|Leaf Curl": {
    "test_photos": 23,
-   "recall": 0.957,
+   "recall": 1.0,
    "precision": 1.0,
-   "f1": 0.978
+   "f1": 1.0
   },
   "citrus|Nutrient Deficiency": {
    "test_photos": 39,
@@ -337,8 +377,8 @@
   "citrus|black_spot": {
    "test_photos": 34,
    "recall": 0.912,
-   "precision": 0.939,
-   "f1": 0.925
+   "precision": 1.0,
+   "f1": 0.954
   },
   "citrus|canker": {
    "test_photos": 69,
@@ -348,21 +388,21 @@
   },
   "citrus|greening": {
    "test_photos": 41,
-   "recall": 0.951,
-   "precision": 0.907,
-   "f1": 0.928
+   "recall": 1.0,
+   "precision": 0.911,
+   "f1": 0.953
   },
   "cotton|Alternaria": {
    "test_photos": 35,
-   "recall": 0.857,
-   "precision": 0.938,
-   "f1": 0.896
+   "recall": 0.886,
+   "precision": 0.912,
+   "f1": 0.899
   },
   "cotton|Bacterial Blight": {
    "test_photos": 67,
-   "recall": 0.881,
-   "precision": 0.983,
-   "f1": 0.929
+   "recall": 0.866,
+   "precision": 0.967,
+   "f1": 0.914
   },
   "cotton|Curl Virus": {
    "test_photos": 111,
@@ -372,9 +412,9 @@
   },
   "cotton|Fusarium Wilt": {
    "test_photos": 67,
-   "recall": 1.0,
-   "precision": 0.957,
-   "f1": 0.978
+   "recall": 0.985,
+   "precision": 0.943,
+   "f1": 0.964
   },
   "cotton|Healthy": {
    "test_photos": 67,
@@ -391,8 +431,8 @@
   "cotton|Leaf Hopper Jassids": {
    "test_photos": 45,
    "recall": 0.978,
-   "precision": 0.898,
-   "f1": 0.936
+   "precision": 0.863,
+   "f1": 0.917
   },
   "cotton|Leaf Redding": {
    "test_photos": 120,
@@ -409,26 +449,26 @@
   "cotton|Verticillium Wilt": {
    "test_photos": 62,
    "recall": 0.952,
-   "precision": 0.881,
-   "f1": 0.915
+   "precision": 0.894,
+   "f1": 0.922
   },
   "datepalm|Black Scorch": {
    "test_photos": 21,
-   "recall": 0.905,
+   "recall": 0.857,
    "precision": 1.0,
-   "f1": 0.95
+   "f1": 0.923
   },
   "datepalm|Fusarium Wilt": {
    "test_photos": 42,
-   "recall": 0.857,
-   "precision": 0.9,
-   "f1": 0.878
+   "recall": 0.786,
+   "precision": 0.943,
+   "f1": 0.857
   },
   "datepalm|Healthy": {
    "test_photos": 60,
-   "recall": 0.95,
-   "precision": 1.0,
-   "f1": 0.974
+   "recall": 1.0,
+   "precision": 0.984,
+   "f1": 0.992
   },
   "datepalm|Leaf Spot": {
    "test_photos": 14,
@@ -438,33 +478,33 @@
   },
   "datepalm|Magnesium Deficiency": {
    "test_photos": 60,
-   "recall": 0.867,
-   "precision": 0.912,
-   "f1": 0.889
+   "recall": 0.85,
+   "precision": 0.927,
+   "f1": 0.887
   },
   "datepalm|Manganese Deficiency": {
    "test_photos": 60,
-   "recall": 0.983,
-   "precision": 1.0,
-   "f1": 0.991
+   "recall": 1.0,
+   "precision": 0.984,
+   "f1": 0.992
   },
   "datepalm|Potassium Deficiency": {
    "test_photos": 60,
    "recall": 0.967,
-   "precision": 0.921,
-   "f1": 0.943
+   "precision": 0.866,
+   "f1": 0.914
   },
   "datepalm|Rachis Blight": {
    "test_photos": 60,
-   "recall": 0.917,
-   "precision": 0.982,
-   "f1": 0.948
+   "recall": 1.0,
+   "precision": 0.896,
+   "f1": 0.945
   },
   "datepalm|Scale Insect": {
    "test_photos": 20,
-   "recall": 0.9,
-   "precision": 0.9,
-   "f1": 0.9
+   "recall": 0.95,
+   "precision": 0.905,
+   "f1": 0.927
   },
   "grape|Bacterial Leaf Spot": {
    "test_photos": 20,
@@ -522,39 +562,39 @@
   },
   "guava|Anthracnose": {
    "test_photos": 40,
-   "recall": 0.85,
-   "precision": 0.756,
-   "f1": 0.8
+   "recall": 0.875,
+   "precision": 0.897,
+   "f1": 0.886
   },
   "guava|Canker": {
    "test_photos": 39,
-   "recall": 0.872,
-   "precision": 0.872,
-   "f1": 0.872
+   "recall": 0.897,
+   "precision": 0.875,
+   "f1": 0.886
   },
   "guava|Dot": {
    "test_photos": 40,
-   "recall": 0.575,
-   "precision": 0.676,
-   "f1": 0.621
+   "recall": 0.525,
+   "precision": 0.75,
+   "f1": 0.618
   },
   "guava|Healthy": {
    "test_photos": 40,
    "recall": 0.95,
-   "precision": 0.826,
-   "f1": 0.884
+   "precision": 0.76,
+   "f1": 0.844
   },
   "guava|Rust": {
    "test_photos": 34,
-   "recall": 0.706,
-   "precision": 0.774,
-   "f1": 0.738
+   "recall": 0.794,
+   "precision": 0.771,
+   "f1": 0.782
   },
   "jamun|Bacterial Spot": {
    "test_photos": 60,
    "recall": 1.0,
-   "precision": 1.0,
-   "f1": 1.0
+   "precision": 0.984,
+   "f1": 0.992
   },
   "jamun|Brown Blight": {
    "test_photos": 60,
@@ -582,39 +622,39 @@
   },
   "lentil|Ascochyta Blight": {
    "test_photos": 60,
-   "recall": 0.833,
-   "precision": 0.943,
-   "f1": 0.885
+   "recall": 0.867,
+   "precision": 0.945,
+   "f1": 0.904
   },
   "lentil|Healthy": {
    "test_photos": 60,
-   "recall": 0.833,
-   "precision": 0.769,
-   "f1": 0.8
+   "recall": 0.867,
+   "precision": 0.765,
+   "f1": 0.813
   },
   "lentil|Powdery Mildew": {
    "test_photos": 60,
-   "recall": 0.85,
-   "precision": 0.836,
-   "f1": 0.843
+   "recall": 0.817,
+   "precision": 0.875,
+   "f1": 0.845
   },
   "lentil|Rust": {
    "test_photos": 60,
    "recall": 0.933,
-   "precision": 0.933,
-   "f1": 0.933
+   "precision": 0.918,
+   "f1": 0.925
   },
   "maize|Blight": {
    "test_photos": 120,
-   "recall": 0.925,
-   "precision": 0.888,
-   "f1": 0.906
+   "recall": 0.933,
+   "precision": 0.875,
+   "f1": 0.903
   },
   "maize|Common Rust": {
    "test_photos": 120,
-   "recall": 0.967,
-   "precision": 0.991,
-   "f1": 0.979
+   "recall": 0.95,
+   "precision": 0.974,
+   "f1": 0.962
   },
   "maize|Gray Leaf Spot": {
    "test_photos": 120,
@@ -625,14 +665,14 @@
   "maize|Healthy": {
    "test_photos": 120,
    "recall": 1.0,
-   "precision": 1.0,
-   "f1": 1.0
+   "precision": 0.984,
+   "f1": 0.992
   },
   "mango|Anthracnose": {
    "test_photos": 120,
-   "recall": 0.992,
-   "precision": 0.992,
-   "f1": 0.992
+   "recall": 1.0,
+   "precision": 1.0,
+   "f1": 1.0
   },
   "mango|Bacterial Canker": {
    "test_photos": 120,
@@ -648,15 +688,15 @@
   },
   "mango|Die Back": {
    "test_photos": 120,
-   "recall": 0.992,
+   "recall": 1.0,
    "precision": 1.0,
-   "f1": 0.996
+   "f1": 1.0
   },
   "mango|Gall Midge": {
    "test_photos": 120,
-   "recall": 0.992,
+   "recall": 1.0,
    "precision": 1.0,
-   "f1": 0.996
+   "f1": 1.0
   },
   "mango|Healthy": {
    "test_photos": 120,
@@ -678,27 +718,27 @@
   },
   "moringa|Bacterial Leaf Spot": {
    "test_photos": 60,
-   "recall": 0.8,
-   "precision": 0.941,
-   "f1": 0.865
+   "recall": 0.867,
+   "precision": 0.963,
+   "f1": 0.912
   },
   "moringa|Cercospora Leaf Spot": {
+   "test_photos": 60,
+   "recall": 0.933,
+   "precision": 0.949,
+   "f1": 0.941
+  },
+  "moringa|Healthy": {
    "test_photos": 60,
    "recall": 0.95,
    "precision": 0.95,
    "f1": 0.95
   },
-  "moringa|Healthy": {
-   "test_photos": 60,
-   "recall": 0.95,
-   "precision": 0.966,
-   "f1": 0.958
-  },
   "moringa|Yellowing": {
    "test_photos": 60,
    "recall": 0.983,
-   "precision": 0.843,
-   "f1": 0.908
+   "precision": 0.881,
+   "f1": 0.929
   },
   "mulberry|Healthy": {
    "test_photos": 60,
@@ -714,27 +754,27 @@
   },
   "onion|Healthy": {
    "test_photos": 60,
-   "recall": 0.883,
-   "precision": 0.841,
-   "f1": 0.861
+   "recall": 0.9,
+   "precision": 0.857,
+   "f1": 0.878
   },
   "onion|Iris Yellow Virus": {
    "test_photos": 56,
    "recall": 0.75,
-   "precision": 0.824,
-   "f1": 0.785
+   "precision": 0.857,
+   "f1": 0.8
   },
   "onion|Leaf Blight": {
    "test_photos": 18,
-   "recall": 0.667,
-   "precision": 0.6,
-   "f1": 0.632
+   "recall": 0.722,
+   "precision": 0.591,
+   "f1": 0.65
   },
   "potato|Early Blight": {
    "test_photos": 200,
    "recall": 1.0,
-   "precision": 1.0,
-   "f1": 1.0
+   "precision": 0.995,
+   "f1": 0.997
   },
   "potato|Healthy": {
    "test_photos": 71,
@@ -744,9 +784,9 @@
   },
   "potato|Phytopthora": {
    "test_photos": 269,
-   "recall": 0.981,
+   "recall": 0.985,
    "precision": 0.989,
-   "f1": 0.985
+   "f1": 0.987
   },
   "radish|Black Leaf Spot": {
    "test_photos": 60,
@@ -786,39 +826,39 @@
   },
   "rice|Brown_Spot": {
    "test_photos": 120,
-   "recall": 0.958,
-   "precision": 0.966,
-   "f1": 0.962
+   "recall": 0.942,
+   "precision": 0.974,
+   "f1": 0.958
   },
   "rice|Healthy": {
    "test_photos": 120,
    "recall": 0.992,
-   "precision": 0.975,
-   "f1": 0.983
+   "precision": 0.967,
+   "f1": 0.979
   },
   "rice|Leaf_Blast": {
    "test_photos": 120,
    "recall": 0.933,
-   "precision": 0.949,
-   "f1": 0.941
+   "precision": 0.966,
+   "f1": 0.949
   },
   "rice|Leaf_Scald": {
    "test_photos": 120,
-   "recall": 0.925,
-   "precision": 0.974,
-   "f1": 0.949
+   "recall": 1.0,
+   "precision": 0.96,
+   "f1": 0.98
   },
   "rice|Sheath_Blight": {
    "test_photos": 120,
-   "recall": 0.975,
-   "precision": 0.992,
-   "f1": 0.983
+   "recall": 0.992,
+   "precision": 1.0,
+   "f1": 0.996
   },
   "rose|Black Spot": {
    "test_photos": 60,
    "recall": 0.95,
-   "precision": 0.95,
-   "f1": 0.95
+   "precision": 0.966,
+   "f1": 0.958
   },
   "rose|Downy Mildew": {
    "test_photos": 40,
@@ -828,9 +868,9 @@
   },
   "rose|Healthy": {
    "test_photos": 60,
-   "recall": 0.95,
-   "precision": 0.966,
-   "f1": 0.958
+   "recall": 0.983,
+   "precision": 0.952,
+   "f1": 0.967
   },
   "spinach|Anthracnose": {
    "test_photos": 20,
@@ -841,44 +881,44 @@
   "spinach|Bacterial Spot": {
    "test_photos": 60,
    "recall": 0.683,
-   "precision": 0.759,
-   "f1": 0.719
+   "precision": 0.672,
+   "f1": 0.677
   },
   "spinach|Downy Mildew": {
    "test_photos": 48,
-   "recall": 0.75,
-   "precision": 0.837,
-   "f1": 0.791
+   "recall": 0.708,
+   "precision": 0.739,
+   "f1": 0.723
   },
   "spinach|Healthy": {
    "test_photos": 60,
-   "recall": 0.783,
-   "precision": 0.734,
-   "f1": 0.758
+   "recall": 0.817,
+   "precision": 0.742,
+   "f1": 0.778
   },
   "spinach|Pest Damage": {
    "test_photos": 60,
-   "recall": 0.717,
-   "precision": 0.672,
-   "f1": 0.694
+   "recall": 0.617,
+   "precision": 0.712,
+   "f1": 0.661
   },
   "sugarcane|Banded Chlorosis": {
    "test_photos": 120,
-   "recall": 0.808,
-   "precision": 0.97,
-   "f1": 0.882
+   "recall": 0.858,
+   "precision": 0.873,
+   "f1": 0.865
   },
   "sugarcane|Brown Spot": {
    "test_photos": 120,
    "recall": 0.975,
-   "precision": 0.975,
-   "f1": 0.975
+   "precision": 0.967,
+   "f1": 0.971
   },
   "sugarcane|BrownRust": {
    "test_photos": 63,
-   "recall": 0.952,
-   "precision": 0.8,
-   "f1": 0.869
+   "recall": 0.794,
+   "precision": 0.794,
+   "f1": 0.794
   },
   "sugarcane|Grassy shoot": {
    "test_photos": 69,
@@ -888,75 +928,75 @@
   },
   "sugarcane|Healthy": {
    "test_photos": 110,
-   "recall": 0.973,
-   "precision": 0.991,
-   "f1": 0.982
+   "recall": 0.982,
+   "precision": 0.973,
+   "f1": 0.977
   },
   "sugarcane|Pokkah Boeng": {
    "test_photos": 59,
    "recall": 0.695,
-   "precision": 0.732,
-   "f1": 0.713
+   "precision": 0.745,
+   "f1": 0.719
   },
   "sugarcane|Sett Rot": {
-   "test_photos": 120,
-   "recall": 1.0,
-   "precision": 0.992,
-   "f1": 0.996
-  },
-  "sugarcane|Smut": {
-   "test_photos": 63,
-   "recall": 0.619,
-   "precision": 0.639,
-   "f1": 0.629
-  },
-  "sugarcane|Viral Disease": {
-   "test_photos": 120,
-   "recall": 0.967,
-   "precision": 0.906,
-   "f1": 0.936
-  },
-  "sugarcane|Yellow Leaf": {
-   "test_photos": 120,
-   "recall": 0.992,
-   "precision": 1.0,
-   "f1": 0.996
-  },
-  "sunflower|Downy Mildew": {
-   "test_photos": 40,
-   "recall": 0.975,
-   "precision": 0.951,
-   "f1": 0.963
-  },
-  "sunflower|Gray Mould": {
-   "test_photos": 40,
-   "recall": 0.825,
-   "precision": 1.0,
-   "f1": 0.904
-  },
-  "sunflower|Healthy": {
-   "test_photos": 40,
-   "recall": 0.925,
-   "precision": 1.0,
-   "f1": 0.961
-  },
-  "sunflower|Leaf Scars": {
-   "test_photos": 40,
-   "recall": 0.9,
-   "precision": 0.947,
-   "f1": 0.923
-  },
-  "tomato|Bacterial Spot": {
    "test_photos": 120,
    "recall": 1.0,
    "precision": 1.0,
    "f1": 1.0
   },
+  "sugarcane|Smut": {
+   "test_photos": 63,
+   "recall": 0.698,
+   "precision": 0.657,
+   "f1": 0.677
+  },
+  "sugarcane|Viral Disease": {
+   "test_photos": 120,
+   "recall": 0.908,
+   "precision": 0.932,
+   "f1": 0.92
+  },
+  "sugarcane|Yellow Leaf": {
+   "test_photos": 120,
+   "recall": 1.0,
+   "precision": 0.984,
+   "f1": 0.992
+  },
+  "sunflower|Downy Mildew": {
+   "test_photos": 40,
+   "recall": 0.95,
+   "precision": 0.95,
+   "f1": 0.95
+  },
+  "sunflower|Gray Mould": {
+   "test_photos": 40,
+   "recall": 1.0,
+   "precision": 1.0,
+   "f1": 1.0
+  },
+  "sunflower|Healthy": {
+   "test_photos": 40,
+   "recall": 1.0,
+   "precision": 1.0,
+   "f1": 1.0
+  },
+  "sunflower|Leaf Scars": {
+   "test_photos": 40,
+   "recall": 0.925,
+   "precision": 0.925,
+   "f1": 0.925
+  },
+  "tomato|Bacterial Spot": {
+   "test_photos": 120,
+   "recall": 1.0,
+   "precision": 0.984,
+   "f1": 0.992
+  },
   "tomato|Early Blight": {
    "test_photos": 120,
-   "recall": 0.992,
+   "recall": 1.0,
    "precision": 1.0,
-   "f1": 0.996
+   "f1": 1.0
   },
   "tomato|Healthy": {
    "test_photos": 120,
@@ -966,33 +1006,33 @@
   },
   "tomato|Late Blight": {
    "test_photos": 120,
-   "recall": 0.992,
-   "precision": 1.0,
+   "recall": 1.0,
+   "precision": 0.992,
    "f1": 0.996
   },
   "tomato|Leaf Mold": {
    "test_photos": 120,
    "recall": 1.0,
-   "precision": 0.992,
-   "f1": 0.996
+   "precision": 1.0,
+   "f1": 1.0
   },
   "tomato|Septoria Leaf Spot": {
    "test_photos": 120,
-   "recall": 0.992,
-   "precision": 1.0,
-   "f1": 0.996
+   "recall": 1.0,
+   "precision": 0.984,
+   "f1": 0.992
   },
   "tomato|Spider Mites Two-spotted Spider Mite": {
    "test_photos": 120,
-   "recall": 0.992,
-   "precision": 0.983,
-   "f1": 0.987
+   "recall": 1.0,
+   "precision": 0.984,
+   "f1": 0.992
   },
   "tomato|Target Spot": {
    "test_photos": 120,
-   "recall": 0.975,
-   "precision": 0.975,
-   "f1": 0.975
+   "recall": 0.967,
+   "precision": 0.991,
+   "f1": 0.979
   },
   "tomato|Tomato Mosaic Virus": {
    "test_photos": 120,
@@ -1026,15 +1066,15 @@
   },
   "wheat|Healthy Leaf": {
    "test_photos": 80,
-   "recall": 0.925,
-   "precision": 0.987,
-   "f1": 0.955
+   "recall": 0.963,
+   "precision": 0.975,
+   "f1": 0.969
   },
   "wheat|Leaf Rust": {
    "test_photos": 80,
-   "recall": 0.912,
-   "precision": 0.948,
-   "f1": 0.93
+   "recall": 0.988,
+   "precision": 0.952,
+   "f1": 0.97
   },
   "wheat|Powdery Mildew": {
    "test_photos": 80,
@@ -1044,9 +1084,9 @@
   },
   "wheat|Stripe Rust": {
    "test_photos": 80,
-   "recall": 0.95,
-   "precision": 0.974,
-   "f1": 0.962
+   "recall": 0.963,
+   "precision": 0.963,
+   "f1": 0.963
   }
  }
 }
