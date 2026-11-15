@@ -5,6 +5,7 @@ import { allDistricts, PROVINCES } from "@/lib/districts";
 import { ResearchFeed, ImportGuide } from "./advisor";
 import { SeedFinder } from "./seeds";
 import { FloodOutlook, FloodCard } from "./flood";
+import { TrainedCrops } from "./crops";
 import { diagnoseLocally, warmLeafModel } from "./leaf-local";
 
 const LS = {
@@ -253,6 +254,7 @@ export default function Home() {
                 </div>
                 {camInputs(true)}
                 <div className="card"><Result d={result} place={placeLabel} /></div>
+                {result.is_plant === false ? <TrainedCrops /> : null}
               </div>
             ) : (
               <div className="stack">
@@ -266,8 +268,9 @@ export default function Home() {
                   </ol>
                   {camInputs(false)}
                   {err ? <p className="board-err" role="alert">{err}</p> : null}
-                  <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔ گندم، چاول، مکئی، کپاس، گنا، ٹماٹر، آلو، آم اور کینو۔ انٹرنیٹ کے بغیر بھی چلتا ہے۔</p>
+                  <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔ انٹرنیٹ کے بغیر بھی چلتا ہے۔</p>
                 </section>
+                <TrainedCrops />
                 {floodHot ? null : floodCard}
                 <Safe resetKey={wxState}><WeatherPanel wx={wx} wxState={wxState} outlook={outlook} /></Safe>
                 <Alerts outlook={outlook} state={outState} />
