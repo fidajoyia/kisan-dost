@@ -1,5 +1,5 @@
 "use client";
-// Seed finder: best seed per crop from the world's top agricultural institutions, compared for this farm.
+// Seed finder: registered varieties from the world's top agricultural institutions; the farmer sorts, filters and compares the facts.
 import { useEffect, useMemo, useState } from "react";
 import { tempSummary, ZONES } from "@/lib/seeds";
 import { CROPS } from "@/lib/seed-intel/crops";
@@ -107,16 +107,46 @@ function Facts({ c, lang: l }) {
     </dl>
   );
 }
-// why this one is not recommended for this farm (only facts)
-function cautions(c, l) {
-  const out = [];
-  if (c.why?.some((w) => w.k === "needs_cold")) out.push(pick(l, "یہ قسم سخت سردی مانگتی ہے؛ آپ کے علاقے کی سردی اس کے لیے کافی نہیں۔", "Needs a cold winter; your winter is not cold enough."));
-  if (c.climate && c.climate.sim < 70) out.push(pick(l, "یہ آپ جیسے موسم میں نہیں آزمائی گئی۔", "Not tested in weather like yours."));
-  if (!c.climate) out.push(pick(l, "آزمائش کی جگہ معلوم نہیں۔", "Test location unknown."));
-  if (!(c.yieldPct > 0 || c.yieldClaim === "higher")) out.push(pick(l, "پرانی اقسام سے زیادہ پیداوار ثابت نہیں۔", "No proven yield gain over check varieties."));
-  if (c.why?.some((w) => w.k === "sem_unknown")) out.push(pick(l, "سیم / کلر برداشت کرنے کا ذکر نہیں۔", "No stated tolerance for waterlogging / salt."));
-  if (c.why?.some((w) => w.k === "rait_unknown")) out.push(pick(l, "کم پانی میں چلنے کا ذکر نہیں۔", "No stated drought tolerance."));
-  return out;
+// The farmer chooses: sort and filter on facts from the registrations. The app gives no verdict of its own.
+const yieldScore = (c) => (c.yieldPct != null ? c.yieldPct : c.yieldClaim === "higher" ? 0.5 : c.yieldClaim ? 0 : -1);
+const SORTS = {
+  match: { t: ["آپ کے موسم سے میل", "Weather match"], f: (a, b) => (b.climate?.sim ?? -1) - (a.climate?.sim ?? -1) },
+  yield: { t: ["پیداوار (پرانی اقسام سے)", "Yield vs checks"], f: (a, b) => yieldScore(b) - yieldScore(a) },
+  disease: { t: ["زیادہ بیماریوں سے بچاؤ", "Most disease resistance"], f: (a, b) => arr(b.resistant).length - arr(a.resistant).length },
+  new: { t: ["نئی اقسام پہلے", "Newest first"], f: (a, b) => (+(b.released || b.year) || 0) - (+(a.released || a.year) || 0) },
+};
+const FILTERS = {
+  similar: { t: ["آپ جیسا موسم", "Weather like yours"], f: (c) => (c.climate?.sim ?? 0) >= 70 },
+  yield: { t: ["زیادہ پیداوار ثابت", "Proven higher yield"], f: (c) => c.yieldPct > 0 || c.yieldClaim === "higher" },
+  disease: { t: ["بیماری سے بچاؤ", "Disease resistant"], f: (c) => arr(c.resistant).length > 0 },
+  heat: { t: ["گرمی برداشت", "Heat tolerant"], f: (c) => !!c.tol?.heat },
+  drought: { t: ["کم پانی", "Drought tolerant"], f: (c) => !!c.tol?.drought },
+  salt: { t: ["کلر برداشت", "Salt tolerant"], f: (c) => !!c.tol?.salt },
+  early: { t: ["جلد پکنے والی", "Early maturing"], f: (c) => c.maturity === "early" },
+  pk: { t: ["پاکستان میں دستیاب", "Available in Pakistan"], f: (c) => c.pakistan === "registered" || c.pakistan === "sold" },
+};
+
+function Compare({ items, lang: l, onClose }) {
+  const rows = [
+    [pick(l, "موسم کا میل", "Weather match"), (c) => climateLine(c, l).short],
+    [pick(l, "پیداوار", "Yield"), (c) => yieldLine(c, l).t],
+    [pick(l, "بیماری سے بچاؤ", "Resists"), (c) => diseaseUr(c.resistant, l).join("، ") || "–"],
+    [pick(l, "برداشت", "Tolerates"), (c) => [c.tol?.heat && pick(l, "گرمی", "heat"), c.tol?.drought && pick(l, "خشکی", "drought"), c.tol?.salt && pick(l, "کلر", "salt"), c.tol?.cold && pick(l, "سردی", "frost")].filter(Boolean).join("، ") || "–"],
+    [pick(l, "پکنے کا وقت", "Maturity"), (c) => ({ early: pick(l, "جلد", "early"), medium: pick(l, "درمیانی", "medium"), late: pick(l, "دیر", "late") }[c.maturity] || "–")],
+    [pick(l, "سال", "Year"), (c) => c.released || c.year || "–"],
+    [pick(l, "پاکستان میں", "In Pakistan"), (c) => (c.pakistan === "registered" || c.pakistan === "sold" ? pick(l, "دستیاب", "available") : pick(l, "درآمد کرنا ہوگا", "import needed"))],
+  ];
+  return (
+    <section className="sf-cmp">
+      <div className="sf-row"><h3 className="sec-title" style={{ margin: 0 }}>{pick(l, "موازنہ", "Compare")}</h3><button type="button" className="btn ghost" onClick={onClose}>{pick(l, "بند کریں", "Close")}</button></div>
+      <div className="wx-table-wrap">
+        <table className="sf-cmp-t">
+          <thead><tr><th />{items.map((c) => <th key={c.id} className="latin">{c.name}</th>)}</tr></thead>
+          <tbody>{rows.map(([k, f]) => <tr key={k}><th>{k}</th>{items.map((c) => <td key={c.id}>{f(c)}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport }) {
@@ -127,6 +157,10 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
   const [data, setData] = useState(null);
   const [state, setState] = useState("idle");
   const [open, setOpen] = useState(null);
+  const [sort, setSort] = useState("match");
+  const [filters, setFilters] = useState([]);
+  const [cmp, setCmp] = useState([]);
+  const [showCmp, setShowCmp] = useState(false);
 
   useEffect(() => {
     const c = LS.get("kd-seed-counts");
@@ -137,14 +171,17 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
   useEffect(() => {
     if (!crop || !coords) return;
     const q = new URLSearchParams({ crop, lat: coords.lat, lon: coords.lon, zone, band: temps?.band || "" });
-    setState("loading"); setOpen(null);
+    setState("loading"); setOpen(null); setCmp([]); setShowCmp(false); setFilters([]);
     fetch(`/api/seeds?${q}`).then((r) => r.json()).then((d) => { setData(d); setState(d.error ? "error" : "ok"); }).catch(() => setState("error"));
   }, [crop, coords?.lat, coords?.lon, zone, temps?.band]);
 
   const choose = (id) => { setCrop(id); LS.set("kd-seed-crop", id); };
   const cropDef = CROPS.find((c) => c.id === crop);
   const sow = cropDef ? sowing(cropDef, temps?.mean14, lang) : null;
-  const best = data?.best || null, list = arr(data?.candidates);
+  const list = arr(data?.candidates);
+  const toggle = (k) => setFilters((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
+  const tick = (id) => setCmp((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id].slice(-3)));
+  const view = list.filter((c) => filters.every((k) => FILTERS[k].f(c))).sort(SORTS[sort].f);
   const shown = CROPS.filter((c) => !counts || counts[c.id] > 0 || c.id === crop);
 
   return (
@@ -188,42 +225,48 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
         : !list.length ? <p className="status">{pick(lang, "اس فصل کی کوئی رجسٹرڈ قسم ابھی ہمارے پاس نہیں۔ اپنے علاقے کی منظور شدہ قسم ہی کاشت کریں۔", "We have no registered variety for this crop yet. Sow your area's approved variety.")}</p>
         : (
           <>
-            {best ? (
-              <section className="sf-best">
-                <span className="sf-badge">{pick(lang, "آپ کے موسم کے لیے موزوں بیج", "Suits your weather")}</span>
-                <h3><span className="latin">{best.name}</span> <small>{pick(lang, cropDef.ur, cropDef.en)}</small></h3>
-                <p className="sf-inst">{instLabel(best, lang)}</p>
-                <Facts c={best} lang={lang} />
-                <p className="note">{pick(lang, "نقصان سے بچنے کے لیے: پہلے سال صرف ایک کنال / ایک ایکڑ میں اپنی پرانی قسم کے ساتھ لگا کر دیکھیں۔ اچھا نتیجہ ملے تو اگلے سال زیادہ رقبے پر لگائیں۔", "To avoid any loss: in the first year sow it on one kanal / acre next to your usual variety. Expand only after a good result.")}</p>
-                <Where c={best} lang={lang} goImport={goImport} />
-              </section>
-            ) : (
-              <section className="sf-none">
-                <b>{pick(lang, "آپ کے علاقے کے لیے ابھی کوئی محفوظ غیر ملکی بیج نہیں ملا", "No safe foreign seed found for your area yet")}</b>
-                <p>{pick(lang,
-                  `ہم نے ${data.total || list.length} اقسام دیکھیں۔ کوئی بھی ایسی نہیں جو آپ جیسے موسم میں آزمائی گئی ہو اور سرکاری تجربات میں پرانی اقسام سے زیادہ پیداوار ثابت کر چکی ہو۔ اندازے سے سفارش کر کے ہم آپ کا نقصان نہیں کروانا چاہتے۔`,
-                  `We checked ${data.total || list.length} varieties. None was tested in weather like yours and also proved more yield than the check varieties in official trials. We will not guess and risk your crop.`)}</p>
-                <p>{pick(lang, "اس سال اپنے علاقے کے لیے منظور شدہ قسم ہی کاشت کریں۔ صحیح قسم کے لیے محکمہ زراعت (توسیع) کے دفتر یا ایوب زرعی تحقیقاتی ادارہ فیصل آباد سے پوچھیں۔", "This year sow a variety approved for your area. Ask the Agriculture (Extension) office or the Ayub Agricultural Research Institute, Faisalabad.")}</p>
-              </section>
-            )}
+            <section className="sf-tools">
+              <div className="sf-row">
+                <label className="sf-sort">{pick(lang, "ترتیب", "Sort")}
+                  <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                    {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{pick(lang, ...v.t)}</option>)}
+                  </select>
+                </label>
+                <span className="sf-count">{pick(lang, `${view.length} / ${list.length} اقسام`, `${view.length} / ${list.length} varieties`)}</span>
+              </div>
+              <div className="sf-filters" role="group" aria-label={pick(lang, "فلٹر", "Filters")}>
+                {Object.entries(FILTERS).filter(([k]) => list.some(FILTERS[k].f)).map(([k, v]) => (
+                  <button key={k} type="button" aria-pressed={filters.includes(k)} onClick={() => toggle(k)}>
+                    {pick(lang, ...v.t)} <span className="num">{list.filter(v.f).length}</span>
+                  </button>
+                ))}
+              </div>
+              {cmp.length ? <button type="button" className="btn sf-cmpbtn" onClick={() => setShowCmp(true)} disabled={cmp.length < 2}>
+                {cmp.length < 2 ? pick(lang, "موازنے کے لیے ایک اور قسم چنیں", "Pick one more to compare") : pick(lang, `${cmp.length} اقسام کا موازنہ کریں`, `Compare ${cmp.length} varieties`)}
+              </button> : <p className="hint" style={{ margin: 0 }}>{pick(lang, "ہر قسم پر ☐ دبا کر 2 یا 3 اقسام ساتھ ساتھ دیکھیں۔ فیصلہ آپ کا ہے؛ ایپ صرف حقائق دکھاتی ہے۔", "Tick ☐ on 2 or 3 varieties to see them side by side. The choice is yours; the app only shows facts.")}</p>}
+            </section>
+
+            {showCmp && cmp.length >= 2 ? <Compare items={list.filter((c) => cmp.includes(c.id))} lang={lang} onClose={() => setShowCmp(false)} /> : null}
 
             <section>
-              <h3 className="sec-title">{best ? pick(lang, "دوسری اقسام", "Other varieties") : pick(lang, "غیر ملکی اقسام (صرف تجربے کے لیے)", "Foreign varieties (for trial only)")} <small>{pick(lang, cropDef.ur, cropDef.en)}</small></h3>
+              <h3 className="sec-title">{pick(lang, "اقسام", "Varieties")} <small>{pick(lang, cropDef.ur, cropDef.en)}</small></h3>
+              {!view.length ? <p className="status">{pick(lang, "ان فلٹرز کے ساتھ کوئی قسم نہیں۔ کوئی فلٹر ہٹا کر دیکھیں۔", "No variety matches these filters. Remove a filter.")}</p> : null}
               <div className="sf-cards">
-                {list.filter((c) => c !== best && c.id !== best?.id).map((c) => {
-                  const cl = climateLine(c, lang), y = yieldLine(c, lang), res = diseaseUr(c.resistant, lang), warn = cautions(c, lang);
+                {view.map((c) => {
+                  const cl = climateLine(c, lang), y = yieldLine(c, lang), res = diseaseUr(c.resistant, lang), on = cmp.includes(c.id);
                   return (
-                    <div key={c.id} className="sf-card">
-                      <button type="button" className="sf-card-h" aria-expanded={open === c.id} onClick={() => setOpen(open === c.id ? null : c.id)}>
-                        <span><b className="latin">{c.name}</b><small>{instLabel(c, lang)}</small></span>
-                        <span className={`sf-pill p-${cl.cls}`}>{cl.short}</span>
-                      </button>
+                    <div key={c.id} className={`sf-card${on ? " on" : ""}`}>
+                      <div className="sf-card-top">
+                        <button type="button" className="sf-tick" aria-pressed={on} aria-label={pick(lang, "موازنے میں شامل کریں", "Add to compare")} onClick={() => tick(c.id)}>{on ? "☑" : "☐"}</button>
+                        <button type="button" className="sf-card-h" aria-expanded={open === c.id} onClick={() => setOpen(open === c.id ? null : c.id)}>
+                          <span><b className="latin">{c.name}</b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
+                          <span className={`sf-pill p-${cl.cls}`}>{cl.short}</span>
+                        </button>
+                      </div>
                       <p className="sf-card-l"><span className={`p-${y.cls}`}>{pick(lang, "پیداوار", "Yield")}: {y.t}</span>{res.length ? <span>{pick(lang, "بچاؤ", "Resists")}: {res.slice(0, 3).join("، ")}</span> : null}</p>
-                      {warn.length ? <p className="sf-warn">{warn[0]}</p> : null}
                       {open === c.id ? (
                         <div className="sf-detail">
                           <Facts c={c} lang={lang} />
-                          {warn.length > 1 ? <ul className="sf-why">{warn.map((w, i) => <li key={i} className="b">{w}</li>)}</ul> : null}
                           <Where c={c} lang={lang} goImport={goImport} />
                         </div>
                       ) : <button type="button" className="linkbtn" onClick={() => setOpen(c.id)}>{pick(lang, "پوری تفصیل", "Full details")}</button>}
@@ -232,6 +275,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
                 })}
               </div>
             </section>
+            <p className="note">{pick(lang, "کوئی بھی نئی قسم پہلے سال صرف ایک کنال / ایک ایکڑ میں اپنی پرانی قسم کے ساتھ لگا کر دیکھیں۔ اپنے علاقے کی منظور شدہ اقسام کے لیے محکمہ زراعت (توسیع) سے پوچھیں۔", "Try any new variety on one kanal / acre next to your usual one in the first year. Ask the Agriculture (Extension) office for varieties approved for your area.")}</p>
             <p className="hint">{pick(lang,
               `یہ معلومات دنیا کے بڑے زرعی اداروں کی سرکاری اقسام کی رجسٹریشن سے لی گئی ہیں۔ موسم کا موازنہ: ناسا کا 20 سالہ موسمی ریکارڈ، فصل کے مہینوں میں۔ ہر ہفتے نئی اقسام خود شامل ہوتی ہیں۔ آخری اپڈیٹ: ${new Date(data.researched || data.updated).toLocaleDateString("ur-PK")}`,
               `From the official variety registrations of the world's leading agricultural institutions. Weather comparison: NASA's 20-year climate record over the crop months. New varieties are added every week. Last update: ${new Date(data.researched || data.updated).toLocaleDateString("en-GB")}`)}</p>

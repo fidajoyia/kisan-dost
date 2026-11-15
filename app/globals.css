@@ -358,3 +358,20 @@ body{padding-bottom:0}
 .tc-list ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
 .tc-list li{font-size:.88rem;border:1px solid var(--line);border-radius:99px;padding:0 10px;background:var(--sheet)}
 .tc-list li.h{background:var(--ok-soft);color:var(--ok);border-color:transparent;font-weight:600}
+/* seeds: farmer sorts, filters and compares */
+.sf-tools{display:flex;flex-direction:column;gap:10px}
+.sf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.sf-sort{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:.92rem}
+.sf-sort select{width:auto}
+.sf-count{font-size:.85rem;color:var(--muted)}
+.sf-filters{display:flex;flex-wrap:wrap;gap:6px}
+.sf-filters button{font:inherit;font-size:.86rem;border:1px solid var(--line);background:var(--soil);color:var(--ink);border-radius:99px;padding:2px 12px;cursor:pointer}
+.sf-filters button[aria-pressed="true"]{background:var(--leaf);border-color:var(--leaf);color:var(--sheet);font-weight:700}
+.sf-filters button .num{font-size:.75rem;opacity:.75}
+.sf-card-top{display:flex;gap:8px;align-items:flex-start}
+.sf-tick{flex:none;font-size:1.3rem;line-height:1.2;background:none;border:0;color:var(--leaf);cursor:pointer;padding:0}
+.sf-card.on{border-color:var(--leaf);box-shadow:inset 0 0 0 1px var(--leaf)}
+.sf-cmp{border:2px solid var(--leaf);border-radius:14px;padding:10px 12px;background:var(--sheet)}
+.sf-cmp-t{width:100%;border-collapse:collapse;font-size:.86rem;margin-top:8px}
+.sf-cmp-t th,.sf-cmp-t td{border-bottom:1px solid var(--line);padding:6px;text-align:start;vertical-align:top}
+.sf-cmp-t tbody th{color:var(--muted);font-weight:600;white-space:nowrap}
