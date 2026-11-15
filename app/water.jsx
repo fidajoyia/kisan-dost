@@ -30,7 +30,7 @@ function Station({ s, lang, big }) {
             {s.toCanals != null ? <div className="c"><span>{pick(lang, "نہروں میں", "Into canals")}</span><b className="num">{fmt(s.toCanals)}</b></div> : null}
           </div>
           {share != null ? <div className="hw-bar" aria-hidden="true"><i style={{ width: `${share}%` }} /></div> : null}
-          {s.toCanals != null ? <p className="hint" style={{ margin: "2px 0 0" }}>{pick(lang, `آنے والے پانی کا تقریباً ${share}٪ یہاں سے نہروں میں جا رہا ہے (آمد − آگے دریا)۔`, `About ${share}% of the incoming water goes into canals here (inflow − outflow).`)}</p> : null}
+          {s.toCanals != null ? <p className="hint" style={{ margin: "2px 0 0" }}>{pick(lang, `آنے والے پانی کا تقریباً ${share}٪ یہاں سے نہروں میں جا رہا ہے۔`, `About ${share}% of the incoming water goes into canals here.`)}</p> : null}
         </>
       )}
       {s.canals.length ? <p className="hw-canals"><span>{pick(lang, "یہاں سے نکلنے والی بڑی نہریں:", "Main canals from here:")}</span> {s.canals.map((c) => pick(lang, c[0], c[1])).join(pick(lang, "، ", ", "))}</p> : null}
@@ -52,7 +52,7 @@ export function WaterScreen({ data, state, lang, onRetry }) {
       <section className="wt-top">
         <p className="wt-date">{pick(lang, "رپورٹ کی تاریخ", "Bulletin date")}: <b>{dayUr(data.date, lang)}</b></p>
         {data.season === "ended" || data.ageDays > 2 ? <p className="note" style={{ margin: "6px 0 0" }}>{pick(lang,
-          `محکمہ موسمیات کا فلڈ ڈویژن یہ روزانہ رپورٹ صرف 15 جون سے وسط اکتوبر تک جاری کرتا ہے۔ یہ اس موسم کی آخری رپورٹ ہے (${data.ageDays} دن پرانی)؛ آج کا بہاؤ مختلف ہو سکتا ہے۔ اگلی رپورٹ 15 جون سے۔`,
+          `یہ اس موسم کی آخری رپورٹ ہے؛ آج کا بہاؤ مختلف ہو سکتا ہے۔ نئی رپورٹ 15 جون سے روزانہ آئے گی۔`,
           `PMD's Flood Forecasting Division issues this daily bulletin only from 15 June to mid-October. This is the season's last bulletin (${data.ageDays} days old); today's flows may differ. Next bulletins from 15 June.`)}</p> : null}
         {data.situation && lang !== "ur" ? <p className="hint">{data.situation}</p> : null}
         <div className="wt-sum">
@@ -73,10 +73,8 @@ export function WaterScreen({ data, state, lang, onRetry }) {
       <details className="more">
         <summary>{pick(lang, "یہ اعداد کیا ہیں؟", "What do these numbers mean?")}</summary>
         <ul className="list">
-          <li>{pick(lang, "تمام بہاؤ کیوسک میں ہے (ایک سیکنڈ میں کتنے مکعب فٹ پانی)، صبح 6 بجے کی پیمائش۔", "All flows in cusecs (cubic feet of water per second), measured at 6 am.")}</li>
-          <li>{pick(lang, "بیراج پر: آمد = اوپر سے آنے والا پانی، آگے دریا میں = نیچے چھوڑا گیا پانی۔ باقی پانی وہیں سے نہروں میں جاتا ہے، اس لیے «نہروں میں» = آمد − آگے دریا (اندازہ)۔", "At a barrage: inflow = water arriving, on down river = water released downstream. The rest goes into the canals there, so “into canals” = inflow − outflow (an estimate).")}</li>
+          <li>{pick(lang, "پانی کیوسک میں ہے (ایک سیکنڈ میں کتنے مکعب فٹ پانی)۔", "All flows in cusecs (cubic feet of water per second), measured at 6 am.")}</li>
           <li>{pick(lang, "ہر نہر کا الگ بہاؤ اس رپورٹ میں نہیں ہوتا؛ اپنی نہر کی باری اور پانی کے لیے محکمہ انہار کے دفتر سے رابطہ کریں۔", "Flows of individual canals are not in this bulletin; ask your Irrigation Department office for your canal's turn and supply.")}</li>
-          <li>{pick(lang, "ماخذ: پاکستان محکمہ موسمیات، فلڈ فورکاسٹنگ ڈویژن لاہور (روزانہ فلڈ بلیٹن)۔", "Source: Pakistan Meteorological Department, Flood Forecasting Division Lahore (daily flood bulletin).")} <a href={data.url} target="_blank" rel="noopener noreferrer">ffd.pmd.gov.pk ↗</a></li>
         </ul>
       </details>
     </div>

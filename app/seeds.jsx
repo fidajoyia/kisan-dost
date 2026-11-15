@@ -270,9 +270,6 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
               </div>
             </section>
             <p className="note">{pick(lang, "کوئی بھی نئی قسم پہلے سال صرف ایک کنال / ایک ایکڑ میں اپنی پرانی قسم کے ساتھ لگا کر دیکھیں۔ اپنے علاقے کی منظور شدہ اقسام کے لیے محکمہ زراعت (توسیع) سے پوچھیں۔", "Try any new variety on one kanal / acre next to your usual one in the first year. Ask the Agriculture (Extension) office for varieties approved for your area.")}</p>
-            <p className="hint">{pick(lang,
-              `یہ معلومات دنیا کے بڑے زرعی اداروں کی سرکاری اقسام کی رجسٹریشن سے لی گئی ہیں۔ موسم کا موازنہ: ناسا کا 20 سالہ موسمی ریکارڈ، فصل کے مہینوں میں۔ ہر ہفتے نئی اقسام خود شامل ہوتی ہیں۔ آخری اپڈیٹ: ${new Date(data.researched || data.updated).toLocaleDateString("ur-PK")}`,
-              `From the official variety registrations of the world's leading agricultural institutions. Weather comparison: NASA's 20-year climate record over the crop months. New varieties are added every week. Last update: ${new Date(data.researched || data.updated).toLocaleDateString("en-GB")}`)}</p>
           </>
         )}
     </div>

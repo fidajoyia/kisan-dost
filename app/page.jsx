@@ -215,7 +215,7 @@ export default function Home() {
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
     } catch (e2) {
       console.error("leaf check failed", e2);
-      setErr(/runtime|model file/.test(String(e2?.message)) ? "ماڈل لوڈ نہیں ہو سکا۔ انٹرنیٹ چیک کر کے دوبارہ تصویر لیں (پہلی بار ماڈل ایک دفعہ ڈاؤن لوڈ ہوتا ہے)۔" : "تصویر کا معائنہ نہیں ہو سکا۔ پتے کی قریب سے صاف تصویر دوبارہ لیں۔");
+      setErr(/runtime|model file/.test(String(e2?.message)) ? "ابھی معائنہ شروع نہیں ہو سکا۔ انٹرنیٹ چیک کر کے دوبارہ تصویر لیں۔" : "تصویر کا معائنہ نہیں ہو سکا۔ پتے کی قریب سے صاف تصویر دوبارہ لیں۔");
     } finally { setBusy(false); }
   }
 
@@ -320,7 +320,7 @@ export default function Home() {
                   </ol>
                   {camInputs(false)}
                   {err ? <p className="board-err" role="alert">{err}</p> : null}
-                  <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔ فصلیں، سبزیاں، پھل دار درخت، نیم، شہتوت اور گلاب۔ انٹرنیٹ کے بغیر بھی چلتا ہے۔</p>
+                  <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔</p>
                 </section>
                 <Tiles wx={wx} wxState={wxState} outlook={outlook} flood={flood} mandi={mandi} go={go} />
                 <TrainedCrops />
@@ -473,7 +473,7 @@ function Alerts({ outlook, state }) {
 function Result({ d, place }) {
   const [tab, setTab] = useState("organic");
   if (d.is_plant === false) return <div className="notcrop"><b>یہ تصویر پہچانی نہیں جا سکی</b><p>{d.image_note || "پتے کی قریب سے واضح تصویر لیں۔"}</p></div>;
-  if (d.plant_only) return <div className="notcrop plantonly"><b>{d.plant?.name_local} <small className="num">{d.plant?.confidence}%</small></b><p>{d.image_note}</p></div>;
+  if (d.plant_only) return <div className="notcrop plantonly"><b>{d.plant?.name_local}</b><p>{d.image_note}</p></div>;
   const p = d.plant || {}, h = d.health || {}, t = d.treatment || {};
   const s = Math.max(0, Math.min(100, Number(h.score) || 0));
   const col = h.status === "healthy" ? "var(--ok)" : h.status === "early" ? "var(--warn)" : "var(--bad)";
@@ -490,7 +490,6 @@ function Result({ d, place }) {
             {place ? <span className="loc-chip">📍 {place}</span> : null}
             {p.category ? <span className="chip leaf">{p.category}</span> : null}
             {p.growth_stage ? <span className="chip">{p.growth_stage}</span> : null}
-            {p.confidence != null ? <span className="chip">پہچان کا یقین <span className="num">{n0(p.confidence)}%</span></span> : null}
           </div>
         </div>
         <div className="gauge">
@@ -507,8 +506,7 @@ function Result({ d, place }) {
               const cf = Math.max(0, Math.min(100, Number(x.confidence) || 0));
               return (
                 <article key={i} className={`dis${cf < 50 ? " mild" : ""}`}>
-                  <div className="dis-top"><h3>{x.name_local} <span className="latin" style={{ fontWeight: 400, color: "var(--muted)", fontSize: ".85rem" }}>{x.name_en}</span></h3><span className="num" style={{ fontSize: ".85rem" }}>{cf}%</span></div>
-                  <div className="bar"><i style={{ width: `${cf}%` }} /></div>
+                  <div className="dis-top"><h3>{x.name_local} <span className="latin" style={{ fontWeight: 400, color: "var(--muted)", fontSize: ".85rem" }}>{x.name_en}</span></h3></div>
                   <div style={{ fontSize: ".88rem", color: "var(--muted)" }}>{x.pathogen}{x.stage ? ` · مرحلہ: ${x.stage}` : ""}</div>
                   {arr(x.signs).length ? <ul>{arr(x.signs).map((sg, k) => <li key={k}>{sg}</li>)}</ul> : null}
                 </article>
@@ -540,7 +538,7 @@ function Result({ d, place }) {
       {arr(d.alternatives).length ? (
         <section>
           <h3 className="sec-title">دوسری ممکنہ تشخیص</h3>
-          <ul className="list">{arr(d.alternatives).map((x, i) => <li key={i}>{x.ur} <span className="num">{x.p}%</span></li>)}</ul>
+          <ul className="list">{arr(d.alternatives).map((x, i) => <li key={i}>{x.ur}</li>)}</ul>
         </section>
       ) : null}
 

@@ -183,18 +183,7 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
         </details>
       ) : null}
 
-      <details className="more">
-        <summary>{pick(lang, "یہ اندازہ کیسے لگتا ہے؟", "How is this worked out?")}</summary>
-        <ul className="list">
-          <li>{pick(lang, "یہ اندازہ ہے، یقین نہیں۔ NDMA، PDMA اور محکمہ موسمیات کی سرکاری وارننگ ہمیشہ پہلے ہے۔", "This is an estimate, not a certainty. Official NDMA, PDMA and Met Office warnings always come first.")}</li>
-          <li>{pick(lang, "بارش، گرمی اور برف کی 7 ماہ کی پیشگوئی: یورپی موسمی مرکز (ECMWF)۔", "7-month rain, heat and snow forecast: the European weather centre (ECMWF).")}</li>
-          <li>{pick(lang, "تربیلا اور منگلا: فیڈرل فلڈ کمیشن کی رپورٹ۔ بھارت کے ڈیم: بھارتی سینٹرل واٹر کمیشن کی ہفتہ وار رپورٹ۔ ہر ڈیم کے ساتھ رپورٹ کی تاریخ لکھی ہے۔", "Tarbela and Mangla: Federal Flood Commission report. Indian dams: India's Central Water Commission weekly report. Each dam shows its report date.")}</li>
-          <li>{pick(lang,
-            `چناب، راوی اور ستلج: کسان دوست کا اپنا ماڈل، 1997 سے اب تک کے ریکارڈ پر جانچا گیا${s.model?.caught ? ` (${s.model.caught.split("/")[1]} بڑے سیلابوں میں سے ${s.model.caught.split("/")[0]} پہلے سے پکڑے)` : ""}۔`,
-            `Chenab, Ravi and Sutlej: Kisan Dost's own model, checked on records since 1997${s.model?.caught ? ` (caught ${s.model.caught} past big floods in advance)` : ""}.`)}</li>
-          {data.updated ? <li>{pick(lang, "آخری اپڈیٹ: ", "Last updated: ")}<span className="num">{new Date(data.updated).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></li> : null}
-        </ul>
-      </details>
+      <p className="hint">{pick(lang, "یہ اندازہ ہے۔ NDMA، PDMA اور محکمہ موسمیات کی سرکاری وارننگ ہمیشہ پہلے ہے۔", "This is an estimate. Official NDMA, PDMA and Met Office warnings always come first.")}</p>
     </div>
   );
 }
