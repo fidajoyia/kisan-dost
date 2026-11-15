@@ -6,6 +6,7 @@ import { ResearchFeed, ImportGuide } from "./advisor";
 import { SeedFinder } from "./seeds";
 import { FloodOutlook, FloodCard } from "./flood";
 import { TrainedCrops } from "./crops";
+import { WaterScreen } from "./water";
 import { diagnoseLocally, warmLeafModel } from "./leaf-local";
 
 const LS = {
@@ -65,6 +66,9 @@ export default function Home() {
   const [flood, setFlood] = useState(null);
   const [floodState, setFloodState] = useState("loading");
   const [floodTry, setFloodTry] = useState(0);
+  const [water, setWater] = useState(null);
+  const [waterState, setWaterState] = useState("idle");
+  const [waterTry, setWaterTry] = useState(0);
   const resultRef = useRef(null);
 
   // 1. Automatic GPS on open (falls back to the last location the farmer chose).
@@ -149,6 +153,19 @@ export default function Home() {
       .then((d) => { setFlood(d); setFloodState(d.error ? "error" : "ok"); if (!d.error) LS.set(key, { t: Date.now(), d }); })
       .catch(() => { setFlood(null); setFloodState("error"); });
   }, [coords, floodTry]);
+
+  // 7. River flows at headworks and water into canals: only fetched when the water tab is opened.
+  useEffect(() => {
+    if (tab !== "water") return;
+    const key = `kd-water1:${coords ? `${coords.lat.toFixed(1)},${coords.lon.toFixed(1)}` : "-"}`;
+    const c = LS.get(key);
+    if (c && Date.now() - c.t < 3 * 3600e3 && !waterTry) { setWater(c.d); setWaterState("ok"); return; }
+    setWaterState("loading");
+    const q = coords ? `?lat=${coords.lat}&lon=${coords.lon}` : "";
+    fetch(`/api/water${q}`).then((r) => r.json())
+      .then((d) => { setWater(d); setWaterState(d.error ? "error" : "ok"); if (!d.error) LS.set(key, { t: Date.now(), d }); })
+      .catch(() => setWaterState("error"));
+  }, [tab, coords, waterTry]);
 
   function openTab(t) {
     if (tab === "research" && t !== "research") setNewIds(new Set()); // seen once you leave the tab
@@ -244,6 +261,7 @@ export default function Home() {
           {tab === "flood" ? <Screen bare title="سیلاب کا خطرہ" sub={placeLabel || "دریا، ڈیم اور آنے والے 7 مہینے"}><FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} /></Screen>
             : tab === "seeds" ? <Screen title="بیج مشورہ" sub="آپ کے موسم کے مطابق، دنیا کے بہترین اداروں سے"><SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => openTab("import")} /></Screen>
             : tab === "research" ? <Screen bare title="نئی تحقیق" sub="آپ کی فصلوں پر دنیا کی بہترین زرعی جامعات سے"><ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} onRetry={() => setResTry((n) => n + 1)} /></Screen>
+            : tab === "water" ? <Screen bare title="دریا، بیراج اور نہریں" sub="ہر ہیڈ ورکس پر پانی کی آمد اور نہروں میں پانی"><WaterScreen data={water} state={waterState} lang={lang} onRetry={() => setWaterTry((n) => n + 1)} /></Screen>
             : tab === "import" ? <Screen title="بیج کی درآمد" sub="باہر سے بیج منگوانے کا قانونی طریقہ"><ImportGuide lang={lang} /></Screen>
             : busy ? <div className="card"><div className="thinking"><div className="spin" /><span>تصویر کا معائنہ ہو رہا ہے… چند سیکنڈ</span></div></div>
             : result ? (
@@ -281,7 +299,7 @@ export default function Home() {
       </main>
 
       <nav className="bottomnav" role="tablist" aria-label="حصے">
-        {[["alerts", "معائنہ", Ico.leaf], ["flood", "سیلاب", Ico.water], ["seeds", "بیج", Ico.sprout], ["research", "تحقیق", Ico.book], ["import", "درآمد", Ico.box]].map(([k, l, I]) => (
+        {[["alerts", "معائنہ", Ico.leaf], ["flood", "سیلاب", Ico.water], ["water", "نہریں", Ico.canal], ["seeds", "بیج", Ico.sprout], ["research", "تحقیق", Ico.book]].map(([k, l, I]) => (
           <button key={k} id={`tab-${k}`} role="tab" type="button" aria-selected={tab === k} aria-controls="sheet-panel" onClick={() => { openTab(k); window.scrollTo({ top: 0 }); }}>
             <span className="bn-ico"><I />
               {k === "research" && newIds.size && tab !== "research" ? <i className="badge num">{newIds.size}</i> : null}
@@ -319,6 +337,7 @@ const Ico = {
   pin: svg(<><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" /><circle cx="12" cy="9.5" r="2.5" /></>),
   back: svg(<path d="m9 6 6 6-6 6" />),
   drop: svg(<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z" />),
+  canal: svg(<><path d="M4 4v16M20 4v16" /><path d="M4 9h16M4 15h16" /><path d="M7 12c1.5-1 3.5-1 5 0s3.5 1 5 0" /></>),
 };
 
 function WeatherPanel({ wx, wxState, outlook }) {

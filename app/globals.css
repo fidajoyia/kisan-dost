@@ -375,3 +375,23 @@ body{padding-bottom:0}
 .sf-cmp-t{width:100%;border-collapse:collapse;font-size:.86rem;margin-top:8px}
 .sf-cmp-t th,.sf-cmp-t td{border-bottom:1px solid var(--line);padding:6px;text-align:start;vertical-align:top}
 .sf-cmp-t tbody th{color:var(--muted);font-weight:600;white-space:nowrap}
+/* water: headworks, barrages, canals */
+.water{gap:14px}
+.water>section,.water>details{background:var(--sheet);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0}
+.wt-date{margin:0}
+.wt-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-top:10px}
+.wt-sum>div{display:flex;flex-direction:column;background:var(--nehar-soft);border-radius:12px;padding:6px 10px;line-height:1.6}
+.wt-sum span{font-size:.78rem;color:var(--muted)} .wt-sum b{font-size:1.25rem;color:var(--nehar)} .wt-sum small{font-size:.74rem;color:var(--muted)}
+.hw-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.hw{border:1px solid var(--line);border-inline-start:5px solid var(--nehar);border-radius:12px;padding:10px 12px}
+.hw.big{border-width:2px;border-inline-start-width:6px}
+.hw-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.hw-head b{font-size:1.1rem} .hw-head small{color:var(--muted);font-size:.8rem}
+.hw-lv{margin-inline-start:auto;font-size:.78rem;font-weight:700;border-radius:99px;padding:0 10px;background:var(--lv-soft);color:var(--lv)}
+.hw-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px;text-align:center}
+.hw-nums>div{display:flex;flex-direction:column;background:var(--soil);border-radius:10px;padding:4px;line-height:1.6}
+.hw-nums span{font-size:.74rem;color:var(--muted)} .hw-nums b{font-size:1.05rem}
+.hw-nums .c{background:var(--nehar-soft)} .hw-nums .c b{color:var(--nehar)}
+.hw-bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}
+.hw-bar i{display:block;height:100%;background:var(--nehar);border-radius:99px}
+.hw-canals{margin:6px 0 0;font-size:.86rem} .hw-canals span{color:var(--muted)}

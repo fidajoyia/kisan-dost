@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "update-ffc": "node scripts/update-ffc.mjs"
+    "update-ffc": "node scripts/update-ffc.mjs",
+    "update-ffd": "node scripts/update-ffd.mjs"
   },
   "dependencies": {
     "next": "14.2.35",

@@ -1,0 +1,151 @@
+{
+ "date": "2026-10-15",
+ "no": "124/26",
+ "stations": {
+  "Tarbela": {
+   "inflow": 44000,
+   "outflow": 55200,
+   "forecast": "40 - 45",
+   "level": "Below Low"
+  },
+  "Kalabagh": {
+   "inflow": 50600,
+   "outflow": 44700,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Chashma": {
+   "inflow": 58400,
+   "outflow": 51200,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Taunsa": {
+   "inflow": 70200,
+   "outflow": 54400,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Guddu": {
+   "inflow": 56500,
+   "outflow": 49100,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Sukkur": {
+   "inflow": 44500,
+   "outflow": 12000,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Kotri": {
+   "inflow": 17900,
+   "outflow": 300,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Nowshera": {
+   "inflow": 17100,
+   "outflow": 17100,
+   "forecast": "15 - 25",
+   "level": "Below Low"
+  },
+  "Mangla": {
+   "inflow": 7000,
+   "outflow": 16000,
+   "forecast": "5 - 10",
+   "level": "Below Low"
+  },
+  "Rasul": {
+   "inflow": 19400,
+   "outflow": 0,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Marala": {
+   "inflow": 12900,
+   "outflow": 4000,
+   "forecast": "10 - 20",
+   "level": "Below Low"
+  },
+  "Khanki": {
+   "inflow": 9500,
+   "outflow": 3700,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Qadirabad": {
+   "inflow": 19500,
+   "outflow": 0,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Trimmu": {
+   "inflow": 16000,
+   "outflow": 2200,
+   "forecast": "No sig. change",
+   "level": "Below Low"
+  },
+  "Punjnad": {
+   "inflow": 8400,
+   "outflow": 0,
+   "forecast": "No sig. change",
+   "level": "Below Low"
+  },
+  "Jassar": {
+   "inflow": 1200,
+   "outflow": 1200,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Shahdara": {
+   "inflow": 1400,
+   "outflow": 1400,
+   "forecast": "No sig. change",
+   "level": "Below Low"
+  },
+  "Balloki": {
+   "inflow": 24300,
+   "outflow": 6300,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Sidhnai": {
+   "inflow": 12000,
+   "outflow": 0,
+   "forecast": "No sig. change",
+   "level": "Below Low"
+  },
+  "G.S. Wala": {
+   "inflow": 100,
+   "outflow": 100,
+   "forecast": "No. sig. change",
+   "level": "Below Low"
+  },
+  "Sulemanki": {
+   "inflow": 17000,
+   "outflow": 9100,
+   "forecast": "No sig. change",
+   "level": "Below Low"
+  },
+  "Islam": {
+   "inflow": 9000,
+   "outflow": 7300,
+   "forecast": "No sig. change",
+   "level": "Below Low"
+  }
+ },
+ "reservoirs": {
+  "tarbela": {
+   "levelFt": 1518.8,
+   "storagePct": 69.44
+  },
+  "mangla": {
+   "levelFt": 1198.95,
+   "storagePct": 57.29
+  }
+ },
+ "season": "ended",
+ "situation": "All major rivers are flowing in their normal flows at all gauging stations.",
+ "saved": "2026-11-15T06:30:08.400Z"
+}
