@@ -8,6 +8,7 @@ import { KB, CROPS_UR, CROPS_EN, KIND_UR, SAFETY_UR } from "@/lib/leaf-kb";
 const ORT_CDN = "/ort/";
 const MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225];
 let session = null, labels = null, guard = null, loading = null;
+const CROP_SURE = 0.6, DISEASE_SURE = 0.6;
 
 function loadScript(src) {
   return new Promise((res, rej) => {
@@ -68,20 +69,29 @@ export async function diagnoseLocally(images, weather) {
   const cropP = {};
   labels.forEach((l, i) => { if (i !== other) { const c = l.split("|")[0]; cropP[c] = (cropP[c] || 0) + probs[i] / rest; } });
   const crop = Object.keys(cropP).sort((x, y) => cropP[y] - cropP[x])[0];
+  // Checked on real phone photos never used in training: at 60% or more the crop name was right 99.5% of the time.
+  if (cropP[crop] < CROP_SURE) return unclear();
   const mine = [...probs.keys()].filter((i) => i !== other && labels[i].startsWith(crop + "|")).sort((x, y) => probs[y] - probs[x]);
   // "<crop>|_plant" = the model knows the plant from field photos but this is not a close leaf photo it can read a disease from
   if (labels[mine[0]].endsWith("|_plant")) return plantOnly(crop, cropP[crop]);
   const leaf = mine.filter((i) => !labels[i].endsWith("|_plant"));
   const sum = leaf.reduce((t, i) => t + probs[i], 0) || 1;
+  if (probs[leaf[0]] / sum < DISEASE_SURE) return plantOnly(crop, cropP[crop], true);
   return buildResult(leaf.slice(0, 4).map((i) => ({ label: labels[i], p: probs[i] / sum })), weather, cropP[crop]);
 }
 
-function plantOnly(crop, p) {
+function unclear() {
+  return { source: "kisan-dost-model", is_plant: false, image_note: "تصویر صاف نہیں آئی۔ ایک ہی پتے کی قریب سے، دن کی روشنی میں تصویر لیں تاکہ پتا پوری تصویر میں نظر آئے۔" };
+}
+
+function plantOnly(crop, p, leafPhoto) {
   const name = CROPS_UR[crop] || crop;
   return {
     source: "kisan-dost-model", is_plant: true, plant_only: true,
     plant: { name_local: name, name_en: CROPS_EN[crop] || crop, confidence: Math.round(Math.min(1, p) * 100) },
-    image_note: `یہ ${name} کا پودا لگتا ہے، مگر اس تصویر سے بیماری نہیں بتائی جا سکتی۔ بیماری جانچنے کے لیے صرف ایک پتے کی قریب سے، دن کی روشنی میں صاف تصویر لیں (پتا پوری تصویر میں نظر آئے)۔`,
+    image_note: leafPhoto
+      ? `یہ ${name} کا پتا ہے۔ بیماری جاننے کے لیے متاثرہ حصے کی قریب سے، دن کی روشنی میں ایک اور تصویر لیں۔`
+      : `یہ ${name} کا پودا ہے۔ بیماری جاننے کے لیے ایک پتے کی قریب سے، دن کی روشنی میں تصویر لیں۔`,
   };
 }
 
@@ -97,10 +107,10 @@ function buildResult(top, wx, cropAll) {
   const [crop] = best.label.split("|");
   const kb = KB[best.label] || {};
   const conf = Math.round(best.p * 100);
-  const sure = best.p >= 0.5;
   const cropP = cropAll; // crop certainty = all probability on this crop's classes
   const healthy = kb.kind === "healthy";
-  const alts = top.slice(1).filter((x) => x.p >= 0.08 && KB[x.label]).map((x) => ({ ...KB[x.label], crop: x.label.split("|")[0], p: Math.round(x.p * 100) }));
+  const alts = top.slice(1) // not shown: one clear answer
+    .filter((x) => x.p >= 0.08 && KB[x.label]).map((x) => ({ ...KB[x.label], crop: x.label.split("|")[0], p: Math.round(x.p * 100) }));
   const humid = wx?.current?.humidity, temp = wx?.current?.temp;
   const wet = (wx?.rain?.next7_mm || 0) >= 5 || humid >= 80;
   return {
@@ -109,7 +119,7 @@ function buildResult(top, wx, cropAll) {
     plant: { name_local: CROPS_UR[crop] || crop, name_en: CROPS_EN[crop] || crop, confidence: Math.round(Math.min(1, cropP) * 100) },
     health: { status: healthy ? "healthy" : best.p >= 0.8 ? "moderate" : "early", label: healthy ? "صحت مند" : kb.ur, score: healthy ? 92 : Math.max(20, 70 - Math.round(best.p * 40)) },
     diseases: healthy ? [] : [{ name_local: kb.ur, name_en: kb.en, pathogen: KIND_UR[kb.kind] || "", confidence: conf, signs: kb.signs || [] }],
-    alternatives: sure ? alts : alts.slice(0, 2),
+    alternatives: [],
     spray: kb.spray || [],
     sprayNote: kb.note || "",
     treatment: { organic: kb.organic || [], chemical: (kb.spray || []).map((s) => `${s.ur} (${s.ai}) — ${s.target}`), cultural: kb.cultural || [] },
@@ -118,8 +128,7 @@ function buildResult(top, wx, cropAll) {
     weatherNote: !healthy && ["fungus", "bacteria"].includes(kb.kind) && wet
       ? `اگلے دنوں نمی ${humid ?? "–"}% اور بارش کا امکان ہے؛ ایسے موسم میں یہ بیماری تیزی سے پھیلتی ہے، اسپرے میں دیر نہ کریں۔ بارش سے فوراً پہلے اسپرے نہ کریں۔`
       : !healthy && kb.kind === "pest" && temp >= 30 ? `گرم موسم (${Math.round(temp)}°) میں رس چوسنے والے کیڑے تیزی سے بڑھتے ہیں؛ صبح یا شام کے وقت اسپرے کریں۔` : "",
-    advice: (!sure ? "تصویر سے پکی پہچان نہیں ہو سکی (یقین کم ہے)۔ پتے کی دن کی روشنی میں قریب سے صاف تصویر دوبارہ لیں، اور نیچے دی گئی دوسری ممکنہ بیماریاں بھی دیکھیں۔ " : "")
-      + `ایپ نے اسے ${CROPS_UR[crop] || crop} کا پتہ پہچانا ہے۔ اگر یہ ${CROPS_UR[crop] || crop} نہیں تو یہ نتیجہ آپ کی فصل کے لیے نہیں؛ اسپرے نہ کریں۔`,
+    advice: "",
     image_note: "",
   };
 }

@@ -183,7 +183,6 @@ export function FloodOutlook({ data, state, lang, onRetry }) {
         </details>
       ) : null}
 
-      <p className="hint">{pick(lang, "یہ اندازہ ہے۔ NDMA، PDMA اور محکمہ موسمیات کی سرکاری وارننگ ہمیشہ پہلے ہے۔", "This is an estimate. Official NDMA, PDMA and Met Office warnings always come first.")}</p>
     </div>
   );
 }

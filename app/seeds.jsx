@@ -269,7 +269,6 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
                 })}
               </div>
             </section>
-            <p className="note">{pick(lang, "کوئی بھی نئی قسم پہلے سال صرف ایک کنال / ایک ایکڑ میں اپنی پرانی قسم کے ساتھ لگا کر دیکھیں۔ اپنے علاقے کی منظور شدہ اقسام کے لیے محکمہ زراعت (توسیع) سے پوچھیں۔", "Try any new variety on one kanal / acre next to your usual one in the first year. Ask the Agriculture (Extension) office for varieties approved for your area.")}</p>
           </>
         )}
     </div>

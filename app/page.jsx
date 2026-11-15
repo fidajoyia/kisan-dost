@@ -324,7 +324,6 @@ export default function Home() {
                 </section>
                 <Tiles wx={wx} wxState={wxState} outlook={outlook} flood={flood} mandi={mandi} go={go} />
                 <TrainedCrops />
-                <p className="foot">یہ ایپ مشورہ دیتی ہے۔ کوئی بھی دوا لگانے سے پہلے محکمہ زراعت کے فیلڈ اسسٹنٹ سے تصدیق کر لیں۔</p>
               </div>
             )}
         </Safe>
@@ -535,12 +534,6 @@ function Result({ d, place }) {
         <section className="spray"><h3 className="sec-title">اسپرے</h3><p className="spray-note">{d.sprayNote || "اس مسئلے کے لیے کیمیائی زہر کی ضرورت نہیں؛ نیچے دیے گئے طریقے اپنائیں۔"}</p></section>
       ) : null}
 
-      {arr(d.alternatives).length ? (
-        <section>
-          <h3 className="sec-title">دوسری ممکنہ تشخیص</h3>
-          <ul className="list">{arr(d.alternatives).map((x, i) => <li key={i}>{x.ur}</li>)}</ul>
-        </section>
-      ) : null}
 
       {arr(d.risks).length ? (
         <section>
@@ -572,7 +565,7 @@ function Result({ d, place }) {
           ))}
         </div>
         <ul className="list">{(arr(t[tab]).length ? arr(t[tab]) : ["کوئی تجویز نہیں"]).map((x, i) => <li key={i}>{x}</li>)}</ul>
-        {tab === "chemical" ? <p className="note">دوا کی مقدار اور وقفہ لیبل کے مطابق رکھیں، اور اسپرے سے پہلے مقامی زرعی ماہر سے تصدیق کریں۔</p> : null}
+        {tab === "chemical" ? <p className="note">دوا کی مقدار اور وقفہ ڈبے کے لیبل کے مطابق رکھیں۔</p> : null}
       </section>
 
       {arr(d.prevention).length ? <section><h3 className="sec-title">بچاؤ</h3><ul className="list">{arr(d.prevention).map((x, i) => <li key={i}>{x}</li>)}</ul></section> : null}

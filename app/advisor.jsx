@@ -76,7 +76,6 @@ export function ImportGuide({ lang }) {
           ))}
         </ul>
       </section>
-      <p className="note">{pick(lang, `قواعد ${IMPORT_UPDATED} کے مطابق؛ درخواست سے پہلے NSDRA / DPP سے فیس اور فارم کی تصدیق کر لیں۔`, `Rules as of ${IMPORT_UPDATED}; confirm fees and forms with NSDRA / DPP before applying.`)}</p>
     </div>
   );
 }

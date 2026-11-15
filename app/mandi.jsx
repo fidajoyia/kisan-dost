@@ -34,7 +34,7 @@ export function MandiRates({ data, state, onRetry }) {
           </li>
         ))}
       </ul>
-      <p className="note">یہ سرکاری منڈی کا اوسط تھوک ریٹ ہے (محکمہ زراعت پنجاب)۔ آپ کی فصل کا ریٹ معیار کے حساب سے کم یا زیادہ ہو سکتا ہے۔</p>
+      <p className="note">یہ سرکاری منڈی کا اوسط تھوک ریٹ ہے۔</p>
     </div>
   );
 }
@@ -58,7 +58,6 @@ export function Schemes() {
           ) : null}
         </article>
       ))}
-      <p className="note">یہ پنجاب حکومت کی اسکیمیں ہیں۔ درخواست سے پہلے محکمہ زراعت کے دفتر سے تازہ شرائط ضرور پوچھ لیں۔</p>
     </div>
   );
 }

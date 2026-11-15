@@ -52,7 +52,7 @@ export function WaterScreen({ data, state, lang, onRetry }) {
       <section className="wt-top">
         <p className="wt-date">{pick(lang, "رپورٹ کی تاریخ", "Bulletin date")}: <b>{dayUr(data.date, lang)}</b></p>
         {data.season === "ended" || data.ageDays > 2 ? <p className="note" style={{ margin: "6px 0 0" }}>{pick(lang,
-          `یہ اس موسم کی آخری رپورٹ ہے؛ آج کا بہاؤ مختلف ہو سکتا ہے۔ نئی رپورٹ 15 جون سے روزانہ آئے گی۔`,
+          `یہ اس موسم کی آخری رپورٹ ہے۔ نئی رپورٹ 15 جون سے روزانہ آئے گی۔`,
           `PMD's Flood Forecasting Division issues this daily bulletin only from 15 June to mid-October. This is the season's last bulletin (${data.ageDays} days old); today's flows may differ. Next bulletins from 15 June.`)}</p> : null}
         {data.situation && lang !== "ur" ? <p className="hint">{data.situation}</p> : null}
         <div className="wt-sum">
@@ -74,7 +74,6 @@ export function WaterScreen({ data, state, lang, onRetry }) {
         <summary>{pick(lang, "یہ اعداد کیا ہیں؟", "What do these numbers mean?")}</summary>
         <ul className="list">
           <li>{pick(lang, "پانی کیوسک میں ہے (ایک سیکنڈ میں کتنے مکعب فٹ پانی)۔", "All flows in cusecs (cubic feet of water per second), measured at 6 am.")}</li>
-          <li>{pick(lang, "ہر نہر کا الگ بہاؤ اس رپورٹ میں نہیں ہوتا؛ اپنی نہر کی باری اور پانی کے لیے محکمہ انہار کے دفتر سے رابطہ کریں۔", "Flows of individual canals are not in this bulletin; ask your Irrigation Department office for your canal's turn and supply.")}</li>
         </ul>
       </details>
     </div>
