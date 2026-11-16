@@ -188,51 +188,36 @@ function InstCompare({ list, lang: l, inst, setInst }) {
   );
 }
 
-export function SeedFinder({ wx, coords, guess, zone, setZone, lang }) {
+export function SeedFinder({ wx, coords, zone, setZone, lang }) {
   const dir = lang === "ur" ? "rtl" : "ltr";
   const temps = useMemo(() => tempSummary(wx), [wx]);
   const [counts, setCounts] = useState(null);
-  const [crop, setCrop] = useState(null);
-  const [data, setData] = useState(null);
-  const [state, setState] = useState("idle");
+  const [tops, setTops] = useState({}); // crop id -> best seed (or null when none), filled as each answer arrives
+  const [open, setOpen] = useState(null);
 
   useEffect(() => {
     const c = LS.get("kd-seed-counts");
     if (c && Date.now() - c.t < 24 * 3600e3) { setCounts(c.d.counts); return; }
-    fetch("/api/seeds?counts=1").then((r) => r.json()).then((d) => { if (d.counts) { setCounts(d.counts); LS.set("kd-seed-counts", { t: Date.now(), d }); } }).catch(() => {});
+    fetch("/api/seeds?counts=1").then((r) => r.json()).then((d) => { if (d.counts) { setCounts(d.counts); LS.set("kd-seed-counts", { t: Date.now(), d }); } }).catch(() => setCounts({}));
   }, []);
-  useEffect(() => { setCrop(LS.get("kd-seed-crop") || "wheat"); }, []);
+  const crops = counts ? CROPS.filter((c) => counts[c.id] > 0) : [];
+  // The best seed of every crop, from any research centre in the world (server ranking: weather match, yield, disease, land).
   useEffect(() => {
-    if (!crop || !coords) return;
-    const q = new URLSearchParams({ crop, lat: coords.lat, lon: coords.lon, zone, band: temps?.band || "" });
-    setState("loading"); 
-    fetch(`/api/seeds?${q}`).then((r) => r.json()).then((d) => { setData(d); setState(d.error ? "error" : "ok"); }).catch(() => setState("error"));
-  }, [crop, coords?.lat, coords?.lon, zone, temps?.band]);
+    if (!coords || !crops.length) return;
+    setTops({});
+    let alive = true;
+    crops.forEach((c) => {
+      const q = new URLSearchParams({ crop: c.id, lat: coords.lat, lon: coords.lon, zone, band: temps?.band || "" });
+      fetch(`/api/seeds?${q}`).then((r) => r.json()).then((d) => { if (alive) setTops((t) => ({ ...t, [c.id]: arr(d.candidates)[0] || null })); })
+        .catch(() => { if (alive) setTops((t) => ({ ...t, [c.id]: null })); });
+    });
+    return () => { alive = false; };
+  }, [crops.map((c) => c.id).join(), coords?.lat, coords?.lon, zone, temps?.band]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const choose = (id) => { setCrop(id); LS.set("kd-seed-crop", id); };
-  const cropDef = CROPS.find((c) => c.id === crop);
-  const sow = cropDef ? sowing(cropDef, temps?.mean14, lang) : null;
-  const list = arr(data?.candidates);
-  const shown = CROPS.filter((c) => !counts || counts[c.id] > 0 || c.id === crop);
-
+  const ready = crops.filter((c) => tops[c.id]);
+  const waiting = crops.some((c) => !(c.id in tops));
   return (
     <div className="stack seeds2" dir={dir}>
-      <section>
-        <h3 className="sec-title">{pick(lang, "فصل منتخب کریں", "Choose crop")}</h3>
-        <div className="sf-crops" role="tablist">
-          {shown.map((c) => (
-            <button key={c.id} type="button" role="tab" aria-selected={crop === c.id} onClick={() => choose(c.id)}>
-              {pick(lang, c.ur, c.en)}
-            </button>
-          ))}
-        </div>
-        {sow ? (
-          <p className={`sf-sow s-${sow.state}`}>
-            <b>{pick(lang, "کاشت کا وقت", "Sowing")}:</b> {sow.win} ·{" "}
-            {{ now: pick(lang, "ابھی کاشت کریں ✓", "sow now ✓"), hot: pick(lang, "موسم ابھی گرم ہے، چند دن رکیں", "still too warm, wait a few days"), cold: pick(lang, "موسم ابھی ٹھنڈا ہے، رکیں", "still too cold, wait"), soon: pick(lang, `${sow.days} دن میں کاشت شروع`, `starts in ${sow.days} days`), later: pick(lang, "اس موسم میں نہیں", "not this season") }[sow.state]}
-          </p>
-        ) : null}
-      </section>
       <section>
         <h3 className="sec-title">{pick(lang, "آپ کی زمین", "Your land")}</h3>
         <div className="zone-switch" role="group" aria-label={pick(lang, "زمین کی قسم", "Land type")}>
@@ -243,26 +228,34 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang }) {
           ))}
         </div>
       </section>
-
       {!coords ? <p className="status">{pick(lang, "لوکیشن ملتے ہی آپ کے علاقے کے مطابق بیج دکھائے جائیں گے۔", "Seeds for your area appear once your location is available.")}</p>
-        : state === "loading" && !data ? <div className="thinking"><div className="spin" /><span>{pick(lang, "بیجوں کا آپ کے موسم سے موازنہ ہو رہا ہے…", "Comparing seeds with your weather…")}</span></div>
-        : state === "error" ? <p className="status err">{pick(lang, "ابھی بیج کی معلومات نہیں مل سکیں۔ تھوڑی دیر بعد دوبارہ کھولیں۔", "Seed information could not be loaded right now. Try again shortly.")}</p>
-        : !list.length ? <p className="status">{pick(lang, "اس فصل کی کوئی رجسٹرڈ قسم ابھی ہمارے پاس نہیں۔", "We have no registered variety for this crop yet. Sow your area's approved variety.")}</p>
+        : !ready.length && waiting ? <div className="thinking"><div className="spin" /><span>{pick(lang, "ہر فصل کا بہترین بیج تلاش ہو رہا ہے…", "Finding the best seed for each crop…")}</span></div>
+        : !ready.length ? <p className="status err">{pick(lang, "ابھی بیج کی معلومات نہیں مل سکیں۔ تھوڑی دیر بعد دوبارہ کھولیں۔", "Seed information could not be loaded right now.")}</p>
         : (
-          (() => {
-            // Only the top seed for this crop: highest on weather match, yield, disease resistance and land type (server ranking).
-            const c = list[0], cl = climateLine(c, lang);
-            return (
-              <section className="sf-best">
-                <span className="sf-badge">{pick(lang, `${cropDef.ur} کا بہترین بیج`, `Best ${cropDef.en} seed`)}</span>
-                <h3><span className="latin">{c.name}</span></h3>
-                <p className="sf-inst">{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</p>
-                <p className={`sf-pill p-${cl.cls}`} style={{ display: "inline-block" }}>{cl.short}</p>
-                <Facts c={c} lang={lang} />
-                <Where c={c} lang={lang} />
-              </section>
-            );
-          })()
+          <section>
+            <h3 className="sec-title">{pick(lang, "ہر فصل کا بہترین بیج", "Best seed for each crop")}</h3>
+            <div className="sf-cards">
+              {ready.map((cd) => {
+                const c = tops[cd.id], cl = climateLine(c, lang), sow = sowing(cd, temps?.mean14, lang), on = open === cd.id;
+                return (
+                  <div key={cd.id} className={`sf-card${on ? " on" : ""}`}>
+                    <button type="button" className="sf-card-h" aria-expanded={on} onClick={() => setOpen(on ? null : cd.id)}>
+                      <span><b>{pick(lang, cd.ur, cd.en)}: <span className="latin">{c.name}</span></b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
+                      <span className={`sf-pill p-${cl.cls}`}>{cl.short}</span>
+                    </button>
+                    {on ? (
+                      <div className="sf-detail">
+                        <p className={`sf-sow s-${sow.state}`}><b>{pick(lang, "کاشت کا وقت", "Sowing")}:</b> {sow.win}</p>
+                        <Facts c={c} lang={lang} />
+                        <Where c={c} lang={lang} />
+                      </div>
+                    ) : <button type="button" className="linkbtn" onClick={() => setOpen(cd.id)}>{pick(lang, "پوری تفصیل", "Full details")}</button>}
+                  </div>
+                );
+              })}
+            </div>
+            {waiting ? <p className="hint">{pick(lang, "باقی فصلیں آ رہی ہیں…", "More crops loading…")}</p> : null}
+          </section>
         )}
     </div>
   );
