@@ -336,7 +336,6 @@ export default function Home() {
                   <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔</p>
                 </section>
                 <Tiles wx={wx} wxState={wxState} outlook={outlook} flood={flood} mandi={mandi} go={go} />
-                <TrainedCrops />
               </div>
             )}
         </Safe>
