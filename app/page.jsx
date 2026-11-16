@@ -8,7 +8,8 @@ import { FloodOutlook, FloodCard } from "./flood";
 import { TrainedCrops } from "./crops";
 import { WaterScreen } from "./water";
 import { MandiRates, Schemes } from "./mandi";
-import { diagnoseLocally, warmLeafModel } from "./leaf-local";
+import { diagnoseLocally, diagnoseForCrop, warmLeafModel } from "./leaf-local";
+import { CROPS_UR } from "@/lib/leaf-kb";
 
 const LS = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } },
@@ -318,8 +319,8 @@ export default function Home() {
                   {images.length ? <div className="thumbs">{images.map((im, i) => <img key={i} src={im.preview} alt={`پتے کی تصویر ${i + 1}`} />)}</div> : null}
                 </div>
                 {camInputs(true)}
-                <div className="card"><Result d={result} place={placeLabel} /></div>
-                {result.is_plant === false ? <TrainedCrops /> : null}
+                <div className="card"><Result d={result} place={placeLabel} onCrop={(c) => setResult(diagnoseForCrop(result.probs, c, wx))} /></div>
+                {result.is_plant === false && !result.choose ? <TrainedCrops /> : null}
               </div>
             ) : (
               <div className="stack">
@@ -482,8 +483,18 @@ function Alerts({ outlook, state }) {
   );
 }
 
-function Result({ d, place }) {
+function Result({ d, place, onCrop }) {
   const [tab, setTab] = useState("organic");
+  if (d.choose) return (
+    <div className="notcrop choose">
+      <b>{d.image_note}</b>
+      <div className="tc-crops" style={{ marginTop: 10 }}>{d.options.map((c) => <button key={c} type="button" onClick={() => onCrop(c)}><b>{CROPS_UR[c] || c}</b></button>)}</div>
+      <select defaultValue="" onChange={(e) => e.target.value && onCrop(e.target.value)} style={{ marginTop: 10, width: "100%" }}>
+        <option value="">کوئی اور فصل…</option>
+        {Object.keys(CROPS_UR).filter((c) => !d.options.includes(c)).sort((a, b) => CROPS_UR[a].localeCompare(CROPS_UR[b], "ur")).map((c) => <option key={c} value={c}>{CROPS_UR[c]}</option>)}
+      </select>
+    </div>
+  );
   if (d.is_plant === false) return <div className="notcrop"><b>یہ تصویر پہچانی نہیں جا سکی</b><p>{d.image_note || "پتے کی قریب سے واضح تصویر لیں۔"}</p></div>;
   if (d.plant_only) return <div className="notcrop plantonly"><b>{d.plant?.name_local}</b><p>{d.image_note}</p></div>;
   const p = d.plant || {}, h = d.health || {}, t = d.treatment || {};
