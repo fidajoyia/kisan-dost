@@ -1,6 +1,6 @@
 {
- "name": "Kisan Dost leaf model v4",
- "trained": "2026-11-15",
+ "name": "Kisan Dost leaf model v5",
+ "trained": "2026-11-16",
  "test_accuracy": 95.76,
  "crop_accuracy": 99.85,
  "test_photos": 11367,
@@ -37,7 +37,7 @@
   "tomato",
   "wheat"
  ],
- "method": "Frozen DINOv2-small image features (same int8 backbone as v2) + our MLP classifier (1024 hidden), ONNX, runs in the browser",
+ "method": "DINOv2-small fine-tuned end to end with strong augmentation (crop, rotation, light, blur, JPEG) + MLP head, int8 ONNX, runs in the browser",
  "split": "stratified 80/20, seed 42, plus photos from the same datasets that were never downloaded for training; test photos never used in training",
  "augmentation": "horizontal flip",
  "tests": {
@@ -1088,5 +1088,26 @@
    "precision": 0.963,
    "f1": 0.963
   }
+ },
+ "tests_app_rule": {
+  "ORIG20": {
+   "disease_right": 95.6,
+   "crop_right": 99.0
+  },
+  "UNSEEN": {
+   "disease_right": 97.5,
+   "crop_right": 99.2
+  },
+  "NEW20": {
+   "disease_right": 92.1,
+   "crop_right": 98.5
+  },
+  "WILD20": {
+   "right_crop_named": 74.3,
+   "wrong_crop_named": 1.4,
+   "asked_to_retake": 24.3,
+   "other_plants_refused": 64.2
+  },
+  "same_leaf_5_shots_same_answer": 89.3
  }
 }
