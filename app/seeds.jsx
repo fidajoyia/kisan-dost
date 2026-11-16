@@ -94,7 +94,6 @@ function Facts({ c, lang: l }) {
   // "sucrose" in a wheat registration is a flour test, not sweetness
   const qual = arr(c.quality).filter((q) => q !== "sugar content" || ["sugarcane", "sugarbeet", "sorghum"].includes(c.crop));
   const rows = [
-    [pick(l, "موسم کا میل", "Weather match"), cl.long, cl.cls],
     [pick(l, "پیداوار", "Yield"), y.t + (mds ? pick(l, ` · تجربات میں تقریباً ${mds} من فی ایکڑ`, ` · about ${mds} maunds/acre in trials`) : ""), y.cls],
     [pick(l, "بیماری سے بچاؤ", "Disease resistance"), res.length ? res.join("، ") + (mod.length ? pick(l, ` · کچھ حد تک: ${mod.join("، ")}`, ` · partly: ${mod.join(", ")}`) : "") : mod.length ? pick(l, `کچھ حد تک: ${mod.join("، ")}`, `partly: ${mod.join(", ")}`) : NA(l), res.length ? "g" : "na"],
     [pick(l, "پکنے کا وقت", "Maturity"), mat ? mat + (c.daysEarlier ? pick(l, ` (پرانی اقسام سے ${c.daysEarlier} دن پہلے)`, ` (${c.daysEarlier} days earlier than checks)`) : "") : NA(l), mat ? "" : "na"],
@@ -236,12 +235,11 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
             <h3 className="sec-title">{pick(lang, "ہر فصل کا بہترین بیج", "Best seed for each crop")}</h3>
             <div className="sf-cards">
               {ready.map((cd) => {
-                const c = tops[cd.id], cl = climateLine(c, lang), sow = sowing(cd, temps?.mean14, lang), on = open === cd.id;
+                const c = tops[cd.id], sow = sowing(cd, temps?.mean14, lang), on = open === cd.id;
                 return (
                   <div key={cd.id} className={`sf-card${on ? " on" : ""}`}>
                     <button type="button" className="sf-card-h" aria-expanded={on} onClick={() => setOpen(on ? null : cd.id)}>
                       <span><b>{pick(lang, cd.ur, cd.en)}: <span className="latin">{c.name}</span></b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
-                      <span className={`sf-pill p-${cl.cls}`}>{cl.short}</span>
                     </button>
                     {on ? (
                       <div className="sf-detail">
