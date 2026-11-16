@@ -442,5 +442,8 @@ body{padding-bottom:0}
 .sf-inst .sf-cmp-t tr.on th,.sf-inst .sf-cmp-t tr.on td{background:var(--leaf-soft)}
 .sf-inst .sf-cmp-t td{text-align:center}
 .sf-inst .sf-cmp-t th small{color:var(--muted);font-weight:400}
-.sf-crop-group{margin-top:12px}
+.sf-crop-group{margin-top:12px;background:var(--sheet);border:1.5px solid var(--leaf);border-radius:16px;padding:10px 14px}
+.sf-box-list>.sf-row-v{padding:8px 0;border-top:1px solid var(--line)}
+.sf-box-list>.sf-row-v:first-child{border-top:0}
+.sf-row-v .sf-card-h{width:100%}
 .sf-crop-h{margin:0 0 6px;font-size:1.1rem;color:var(--leaf)}

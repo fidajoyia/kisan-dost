@@ -242,11 +242,11 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
             {ready.map((cd) => (
               <div key={cd.id} className="sf-crop-group">
                 <h4 className="sf-crop-h">{pick(lang, cd.ur, cd.en)}</h4>
-                <div className="sf-cards">
+                <div className="sf-box-list">
                   {tops[cd.id].map((c, k) => {
                     const id = `${cd.id}:${c.id}`, on = open === id, sow = sowing(cd, temps?.mean14, lang);
                     return (
-                      <div key={id} className={`sf-card${on ? " on" : ""}`}>
+                      <div key={id} className={`sf-row-v${on ? " on" : ""}`}>
                         <button type="button" className="sf-card-h" aria-expanded={on} onClick={() => setOpen(on ? null : id)}>
                           <span><b><span className="num">{k + 1}.</span> <span className="latin">{shortName(c.name)}</span></b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
                         </button>
