@@ -187,6 +187,12 @@ function InstCompare({ list, lang: l, inst, setInst }) {
   );
 }
 
+// One clean variety name: registrations that list several varieties ("A / B / C", "A and B two-row barley cultivars") show the first.
+const shortName = (n = "") => {
+  let x = String(n).split(" / ")[0].split(/ and |, /)[0].trim();
+  const w = x.split(" "); const cut = w.findIndex((t, i) => i > 0 && /^[a-z][a-z-]{3,}$/.test(t));
+  return (cut > 0 ? w.slice(0, cut) : w).join(" ");
+};
 export function SeedFinder({ wx, coords, zone, setZone, lang }) {
   const dir = lang === "ur" ? "rtl" : "ltr";
   const temps = useMemo(() => tempSummary(wx), [wx]);
@@ -242,7 +248,7 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
                     return (
                       <div key={id} className={`sf-card${on ? " on" : ""}`}>
                         <button type="button" className="sf-card-h" aria-expanded={on} onClick={() => setOpen(on ? null : id)}>
-                          <span><b><span className="num">{k + 1}.</span> <span className="latin">{c.name}</span></b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
+                          <span><b><span className="num">{k + 1}.</span> <span className="latin">{shortName(c.name)}</span></b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
                         </button>
                         {on ? (
                           <div className="sf-detail">
