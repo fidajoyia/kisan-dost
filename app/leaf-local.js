@@ -8,7 +8,7 @@ import { KB, CROPS_UR, CROPS_EN, KIND_UR, SAFETY_UR } from "@/lib/leaf-kb";
 const ORT_CDN = "/ort/";
 const MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225];
 let session = null, labels = null, guard = null, loading = null;
-const CROP_SURE = 0.6, DISEASE_SURE = 0.6;
+const CROP_SURE = 0.3, DISEASE_SURE = 0.6;
 
 function loadScript(src) {
   return new Promise((res, rej) => {
@@ -70,22 +70,18 @@ export async function diagnoseLocally(images, weather) {
   labels.forEach((l, i) => { if (i !== other) { const c = l.split("|")[0]; cropP[c] = (cropP[c] || 0) + probs[i] / rest; } });
   const crop = Object.keys(cropP).sort((x, y) => cropP[y] - cropP[x])[0];
   // Checked on real phone photos never used in training: at 60% or more the crop name was right 99.5% of the time.
-  // Not sure which crop (leaves of cotton, grape, mulberry look alike): the farmer taps the crop, then the disease is read
-  if (cropP[crop] < CROP_SURE) {
-    const options = Object.keys(cropP).sort((x, y) => cropP[y] - cropP[x]).slice(0, 3);
-    return { source: "kisan-dost-model", is_plant: false, choose: true, options, probs: Array.from(probs), image_note: "یہ کون سی فصل ہے؟ فصل پر دبائیں، ایپ اسی فصل کی بیماری بتائے گی۔" };
-  }
+  // Real phone photos never used in training: naming the best crop when it holds 30% or more was right 94% of the time;
+  // below that only 46%, so then the app asks for one clearer photo instead of guessing.
+  if (cropP[crop] < CROP_SURE) return { source: "kisan-dost-model", is_plant: false, image_note: "پتا صاف نظر نہیں آیا۔ ایک ہی پتے کی قریب سے، دن کی روشنی میں تصویر لیں تاکہ پتا پوری تصویر میں ہو۔" };
   return forCrop(probs, crop, weather, cropP[crop]);
 }
 
-// Result for a known crop (picked by the model, or tapped by the farmer): best class inside that crop only.
-export function diagnoseForCrop(probsArr, crop, weather) { return forCrop(Float32Array.from(probsArr), crop, weather, 1, true); }
 
-function forCrop(probs, crop, weather, cropSure, farmerSaid) {
+function forCrop(probs, crop, weather, cropSure) {
   const other = labels.indexOf("other");
   const mine = [...probs.keys()].filter((i) => i !== other && labels[i].startsWith(crop + "|")).sort((x, y) => probs[y] - probs[x]);
   // "<crop>|_plant" = the model knows the plant from field photos but this is not a close leaf photo it can read a disease from
-  if (!farmerSaid && labels[mine[0]].endsWith("|_plant")) return plantOnly(crop, cropSure);
+  if (labels[mine[0]].endsWith("|_plant")) return plantOnly(crop, cropSure);
   const leaf = mine.filter((i) => !labels[i].endsWith("|_plant"));
   const sum = leaf.reduce((t, i) => t + probs[i], 0) || 1;
   if (probs[leaf[0]] / sum < DISEASE_SURE) return plantOnly(crop, cropSure, true);
