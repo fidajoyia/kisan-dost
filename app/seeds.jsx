@@ -125,7 +125,6 @@ const FILTERS = {
   drought: { t: ["کم پانی", "Drought tolerant"], f: (c) => !!c.tol?.drought },
   salt: { t: ["کلر برداشت", "Salt tolerant"], f: (c) => !!c.tol?.salt },
   early: { t: ["جلد پکنے والی", "Early maturing"], f: (c) => c.maturity === "early" },
-  pk: { t: ["پاکستان میں دستیاب", "Available in Pakistan"], f: (c) => c.pakistan === "registered" || c.pakistan === "sold" },
 };
 
 function Compare({ items, lang: l, onClose }) {
@@ -136,7 +135,6 @@ function Compare({ items, lang: l, onClose }) {
     [pick(l, "برداشت", "Tolerates"), (c) => [c.tol?.heat && pick(l, "گرمی", "heat"), c.tol?.drought && pick(l, "خشکی", "drought"), c.tol?.salt && pick(l, "کلر", "salt"), c.tol?.cold && pick(l, "سردی", "frost")].filter(Boolean).join("، ") || "–"],
     [pick(l, "پکنے کا وقت", "Maturity"), (c) => ({ early: pick(l, "جلد", "early"), medium: pick(l, "درمیانی", "medium"), late: pick(l, "دیر", "late") }[c.maturity] || "–")],
     [pick(l, "سال", "Year"), (c) => c.released || c.year || "–"],
-    [pick(l, "پاکستان میں", "In Pakistan"), (c) => (c.pakistan === "registered" || c.pakistan === "sold" ? pick(l, "دستیاب", "available") : pick(l, "درآمد کرنا ہوگا", "import needed"))],
   ];
   return (
     <section className="sf-cmp">
@@ -190,7 +188,7 @@ function InstCompare({ list, lang: l, inst, setInst }) {
   );
 }
 
-export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport }) {
+export function SeedFinder({ wx, coords, guess, zone, setZone, lang }) {
   const dir = lang === "ur" ? "rtl" : "ltr";
   const temps = useMemo(() => tempSummary(wx), [wx]);
   const [counts, setCounts] = useState(null);
@@ -258,7 +256,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
       {!coords ? <p className="status">{pick(lang, "لوکیشن ملتے ہی آپ کے علاقے کے مطابق بیج دکھائے جائیں گے۔", "Seeds for your area appear once your location is available.")}</p>
         : state === "loading" && !data ? <div className="thinking"><div className="spin" /><span>{pick(lang, "بیجوں کا آپ کے موسم سے موازنہ ہو رہا ہے…", "Comparing seeds with your weather…")}</span></div>
         : state === "error" ? <p className="status err">{pick(lang, "ابھی بیج کی معلومات نہیں مل سکیں۔ تھوڑی دیر بعد دوبارہ کھولیں۔", "Seed information could not be loaded right now. Try again shortly.")}</p>
-        : !list.length ? <p className="status">{pick(lang, "اس فصل کی کوئی رجسٹرڈ قسم ابھی ہمارے پاس نہیں۔ اپنے علاقے کی منظور شدہ قسم ہی کاشت کریں۔", "We have no registered variety for this crop yet. Sow your area's approved variety.")}</p>
+        : !list.length ? <p className="status">{pick(lang, "اس فصل کی کوئی رجسٹرڈ قسم ابھی ہمارے پاس نہیں۔", "We have no registered variety for this crop yet. Sow your area's approved variety.")}</p>
         : (
           <>
             <InstCompare list={list} lang={lang} inst={inst} setInst={setInst} />
@@ -305,7 +303,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
                       {open === c.id ? (
                         <div className="sf-detail">
                           <Facts c={c} lang={lang} />
-                          <Where c={c} lang={lang} goImport={goImport} />
+                          <Where c={c} lang={lang} />
                         </div>
                       ) : <button type="button" className="linkbtn" onClick={() => setOpen(c.id)}>{pick(lang, "پوری تفصیل", "Full details")}</button>}
                     </div>
@@ -319,7 +317,7 @@ export function SeedFinder({ wx, coords, guess, zone, setZone, lang, goImport })
   );
 }
 
-function Where({ c, lang, goImport }) {
+function Where({ c, lang }) {
   const by = arr(c.institutions).map((i) => pick(lang, i.name_ur, i.name_en)).join("، ");
   return (
     <div className="sf-where">
@@ -327,9 +325,6 @@ function Where({ c, lang, goImport }) {
       <ul>
         {by ? <li>{pick(lang, "تیار کرنے والا ادارہ", "Developed by")}: {by}</li> : null}
         {c.seller?.name && !arr(c.institutions).some((i) => i.name_en === c.seller.name) ? <li>{pick(lang, "تصدیق شدہ بیج / لائسنس", "Certified seed / licence")}: <span className="latin">{c.seller.name}</span></li> : null}
-        {c.pakistan === "registered" || c.pakistan === "sold"
-          ? <li className="g">{pick(lang, "پاکستان میں دستیاب", "Available in Pakistan")}{lang !== "ur" && c.pakistanNote ? `: ${c.pakistanNote}` : ""}</li>
-          : <li>{pick(lang, "پاکستان میں ابھی دستیاب نہیں؛ منگوانے کا طریقہ: ", "Not yet in Pakistan; to bring it: ")}<button type="button" className="linkbtn" onClick={goImport}>{pick(lang, "درآمد کا طریقہ", "import steps")}</button></li>}
         {c.regNo ? <li>{pick(lang, "سرکاری رجسٹریشن نمبر", "Registration no.")}: <span className="latin">{c.regNo}</span>{c.pi ? <> · {pick(lang, "جین بینک نمبر", "Gene bank no.")} <span className="latin">PI {c.pi}</span></> : null}</li> : null}
       </ul>
     </div>

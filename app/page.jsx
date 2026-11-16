@@ -2,7 +2,7 @@
 import { Safe } from "./boundary";
 import { useEffect, useRef, useState } from "react";
 import { allDistricts, PROVINCES } from "@/lib/districts";
-import { ResearchFeed, ImportGuide } from "./advisor";
+import { ResearchFeed } from "./advisor";
 import { SeedFinder } from "./seeds";
 import { FloodOutlook, FloodCard } from "./flood";
 import { TrainedCrops } from "./crops";
@@ -298,9 +298,8 @@ export default function Home() {
             : tab === "weather" ? <Screen bare title="موسم" sub={placeShort}><WeatherScreen wx={wx} wxState={wxState} outlook={outlook} outState={outState} /></Screen>
             : tab === "seeds" ? (
               <Screen bare title="بیج کا مشورہ" sub="آپ کے موسم اور زمین کے مطابق">
-                <div className="card"><SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} goImport={() => go("seeds", "import")} /></div>
+                <div className="card"><SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} /></div>
                 <details className="card fold" id="research"><summary>دنیا کی نئی زرعی تحقیق{newIds.size ? <span className="badge-in num">{newIds.size}</span> : null}</summary><ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} onRetry={() => setResTry((n) => n + 1)} /></details>
-                <details className="card fold" id="import"><summary>بیج باہر سے منگوانے کا طریقہ</summary><ImportGuide lang={lang} /></details>
               </Screen>
             )
             : tab === "mandi" ? (
