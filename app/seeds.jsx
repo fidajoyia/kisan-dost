@@ -207,13 +207,13 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
     let alive = true;
     crops.forEach((c) => {
       const q = new URLSearchParams({ crop: c.id, lat: coords.lat, lon: coords.lon, zone, band: temps?.band || "" });
-      fetch(`/api/seeds?${q}`).then((r) => r.json()).then((d) => { if (alive) setTops((t) => ({ ...t, [c.id]: arr(d.candidates)[0] || null })); })
-        .catch(() => { if (alive) setTops((t) => ({ ...t, [c.id]: null })); });
+      fetch(`/api/seeds?${q}`).then((r) => r.json()).then((d) => { if (alive) setTops((t) => ({ ...t, [c.id]: arr(d.candidates).slice(0, 3) })); })
+        .catch(() => { if (alive) setTops((t) => ({ ...t, [c.id]: [] })); });
     });
     return () => { alive = false; };
   }, [crops.map((c) => c.id).join(), coords?.lat, coords?.lon, zone, temps?.band]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ready = crops.filter((c) => tops[c.id]);
+  const ready = crops.filter((c) => arr(tops[c.id]).length);
   const waiting = crops.some((c) => !(c.id in tops));
   return (
     <div className="stack seeds2" dir={dir}>
@@ -228,30 +228,35 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
         </div>
       </section>
       {!coords ? <p className="status">{pick(lang, "لوکیشن ملتے ہی آپ کے علاقے کے مطابق بیج دکھائے جائیں گے۔", "Seeds for your area appear once your location is available.")}</p>
-        : !ready.length && waiting ? <div className="thinking"><div className="spin" /><span>{pick(lang, "ہر فصل کا بہترین بیج تلاش ہو رہا ہے…", "Finding the best seed for each crop…")}</span></div>
+        : !ready.length && waiting ? <div className="thinking"><div className="spin" /><span>{pick(lang, "ہر فصل کی بہترین اقسام تلاش ہو رہی ہیں…", "Finding the best varieties for each crop…")}</span></div>
         : !ready.length ? <p className="status err">{pick(lang, "ابھی بیج کی معلومات نہیں مل سکیں۔ تھوڑی دیر بعد دوبارہ کھولیں۔", "Seed information could not be loaded right now.")}</p>
         : (
           <section>
-            <h3 className="sec-title">{pick(lang, "ہر فصل کا بہترین بیج", "Best seed for each crop")}</h3>
-            <div className="sf-cards">
-              {ready.map((cd) => {
-                const c = tops[cd.id], sow = sowing(cd, temps?.mean14, lang), on = open === cd.id;
-                return (
-                  <div key={cd.id} className={`sf-card${on ? " on" : ""}`}>
-                    <button type="button" className="sf-card-h" aria-expanded={on} onClick={() => setOpen(on ? null : cd.id)}>
-                      <span><b>{pick(lang, cd.ur, cd.en)}: <span className="latin">{c.name}</span></b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
-                    </button>
-                    {on ? (
-                      <div className="sf-detail">
-                        <p className={`sf-sow s-${sow.state}`}><b>{pick(lang, "کاشت کا وقت", "Sowing")}:</b> {sow.win}</p>
-                        <Facts c={c} lang={lang} />
-                        <Where c={c} lang={lang} />
+            <h3 className="sec-title">{pick(lang, "ہر فصل کی 3 بہترین اقسام", "Top 3 varieties of each crop")}</h3>
+            {ready.map((cd) => (
+              <div key={cd.id} className="sf-crop-group">
+                <h4 className="sf-crop-h">{pick(lang, cd.ur, cd.en)}</h4>
+                <div className="sf-cards">
+                  {tops[cd.id].map((c, k) => {
+                    const id = `${cd.id}:${c.id}`, on = open === id, sow = sowing(cd, temps?.mean14, lang);
+                    return (
+                      <div key={id} className={`sf-card${on ? " on" : ""}`}>
+                        <button type="button" className="sf-card-h" aria-expanded={on} onClick={() => setOpen(on ? null : id)}>
+                          <span><b><span className="num">{k + 1}.</span> <span className="latin">{c.name}</span></b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
+                        </button>
+                        {on ? (
+                          <div className="sf-detail">
+                            <p className={`sf-sow s-${sow.state}`}><b>{pick(lang, "کاشت کا وقت", "Sowing")}:</b> {sow.win}</p>
+                            <Facts c={c} lang={lang} />
+                            <Where c={c} lang={lang} />
+                          </div>
+                        ) : <button type="button" className="linkbtn" onClick={() => setOpen(id)}>{pick(lang, "پوری تفصیل", "Full details")}</button>}
                       </div>
-                    ) : <button type="button" className="linkbtn" onClick={() => setOpen(cd.id)}>{pick(lang, "پوری تفصیل", "Full details")}</button>}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
             {waiting ? <p className="hint">{pick(lang, "باقی فصلیں آ رہی ہیں…", "More crops loading…")}</p> : null}
           </section>
         )}
