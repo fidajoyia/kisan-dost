@@ -137,7 +137,7 @@ export default function Home() {
 
   // 5. Newest research from the 10 centres (server refreshes it automatically; cached here for 3 h).
   useEffect(() => {
-    const key = "kd-research3";
+    const key = "kd-research4";
     const cached = LS.get(key);
     const markNew = (d) => {
       const seen = LS.get("kd-research-seen");

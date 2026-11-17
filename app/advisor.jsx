@@ -37,7 +37,7 @@ export function ResearchFeed({ data, state, lang, newIds, onRetry }) {
                 const c = centerById(r.center);
                 return (
                   <article key={r.id} className="rs">
-                    <h4>{newIds.has(r.id) ? <span className="new">{pick(lang, "نیا", "New")}</span> : null}{lang === "ur" ? r.title_ur : r.title}</h4>
+                    <h4>{newIds.has(r.id) ? <span className="new">{pick(lang, "نیا", "New")}</span> : null}{lang === "ur" ? r.headline_ur || r.title_ur : r.title}</h4>{lang === "ur" && r.headline_ur ? <p className="rs-tags">{r.title_ur}</p> : null}
                     <p className="rs-meta">{c ? <span>{pick(lang, c.name_ur, c.short)}</span> : null}{r.date ? <span className="num">{r.date}</span> : null}</p>
                   </article>
                 );
