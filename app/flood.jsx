@@ -95,7 +95,7 @@ function RiverCard({ r, lang }) {
   return (
     <div className={`fx-river ${lvClass(r.level)}`}>
       <div className="fx-rhead">
-        <b>{pick(lang, r.ur, r.en)}{r.near ? <em className="fx-near">{pick(lang, "آپ کے قریب", "near you")}{r.km != null ? <span className="num"> {r.km} km</span> : null}</em> : null}</b>
+        <b>{pick(lang, r.ur, r.en)}{r.near ? <em className="fx-near">{pick(lang, "آپ کے قریب", "near you")}{r.km != null ? <> <span className="num">{r.km}</span> {pick(lang, "کلومیٹر", "km")}</> : null}</em> : null}</b>
         <span className="fx-pill">{dangerTxt(r.level, lang)}</span>
       </div>
       <Months months={r.months} lang={lang} />
@@ -127,7 +127,7 @@ export function FloodCard({ data, lang, onOpen }) {
 
 export function FloodOutlook({ data, state, lang, onRetry }) {
   if (state === "loading" && !data) return <div className="thinking"><div className="spin" /><span>{pick(lang, "دریا، ڈیم اور آنے والے مہینوں کا موسم دیکھا جا رہا ہے…", "Checking rivers, dams and the coming months' weather…")}</span></div>;
-  if (state === "nogps") return <p className="status">{pick(lang, "سیلاب کی پیشگوئی کے لیے اوپر سے اپنا ضلع چنیں یا لوکیشن (GPS) کی اجازت دیں۔", "Pick your district above or allow location (GPS) to get the flood outlook.")}</p>;
+  if (state === "nogps") return <p className="status">{pick(lang, "سیلاب کی پیشگوئی کے لیے اوپر سے اپنا ضلع چنیں یا فون کی لوکیشن کی اجازت دیں۔", "Pick your district above or allow location (GPS) to get the flood outlook.")}</p>;
   const s = data?.summary;
   if (!s?.farm) return <p className="status err">{pick(lang, "سیلاب کی پیشگوئی ابھی نہیں مل سکی۔", "The flood outlook could not be loaded right now.")} <button type="button" className="btn ghost" onClick={onRetry}>{pick(lang, "دوبارہ کوشش", "Retry")}</button></p>;
 

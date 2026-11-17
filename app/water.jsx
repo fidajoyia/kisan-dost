@@ -19,7 +19,7 @@ function Station({ s, lang, big }) {
     <div className={`hw${big ? " big" : ""}`}>
       <div className="hw-head">
         <b>{pick(lang, s.ur, s.id)}</b>
-        <small>{pick(lang, RIVER_UR[s.river], RIVER_EN[s.river])} · {pick(lang, ...KIND[s.kind])}{s.km != null ? <> · <span className="num">{s.km} km</span></> : null}</small>
+        <small>{pick(lang, RIVER_UR[s.river], RIVER_EN[s.river])} · {pick(lang, ...KIND[s.kind])}{s.km != null ? <> · <span className="num">{s.km}</span> {pick(lang, "کلومیٹر", "km")}</> : null}</small>
         {lv ? <span className={`hw-lv lv-${lv[2]}`}>{pick(lang, lv[0], lv[1])}</span> : null}
       </div>
       {s.inflow == null ? <p className="hint">{pick(lang, "اس رپورٹ میں یہاں کا بہاؤ درج نہیں۔", "No flow reported here in this bulletin.")}</p> : (
@@ -57,8 +57,8 @@ export function WaterScreen({ data, state, lang, onRetry }) {
         {data.situation && lang !== "ur" ? <p className="hint">{data.situation}</p> : null}
         <div className="wt-sum">
           <div><span>{pick(lang, "تمام بیراجوں سے نہروں میں", "Into canals, all barrages")}</span><b className="num">{fmt(totalCanals)}</b><small>{pick(lang, "کیوسک", "cusecs")}</small></div>
-          {r.tarbela ? <div><span>{pick(lang, "تربیلا ڈیم بھرا", "Tarbela full")}</span><b className="num">{Math.round(r.tarbela.storagePct)}%</b><small className="num">{r.tarbela.levelFt} ft</small></div> : null}
-          {r.mangla ? <div><span>{pick(lang, "منگلا ڈیم بھرا", "Mangla full")}</span><b className="num">{Math.round(r.mangla.storagePct)}%</b><small className="num">{r.mangla.levelFt} ft</small></div> : null}
+          {r.tarbela ? <div><span>{pick(lang, "تربیلا ڈیم بھرا", "Tarbela full")}</span><b className="num">{Math.round(r.tarbela.storagePct)}%</b><small><span className="num">{r.tarbela.levelFt}</span> {pick(lang, "فٹ", "ft")}</small></div> : null}
+          {r.mangla ? <div><span>{pick(lang, "منگلا ڈیم بھرا", "Mangla full")}</span><b className="num">{Math.round(r.mangla.storagePct)}%</b><small><span className="num">{r.mangla.levelFt}</span> {pick(lang, "فٹ", "ft")}</small></div> : null}
         </div>
       </section>
 

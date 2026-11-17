@@ -6,6 +6,7 @@ import { CROPS } from "@/lib/seed-intel/crops";
 import { instById } from "@/lib/seed-intel/institutions";
 
 const pick = (lang, ur, en) => (lang === "ur" ? ur : en);
+const SEP = (lang) => (lang === "ur" ? "، " : ", ");
 const arr = (a) => (Array.isArray(a) ? a : []);
 const LS = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } },
@@ -59,7 +60,7 @@ const TYPE_UR = { "hard red winter": "سخت سرخ دانہ", "soft red winter"
   "hard white spring": "سخت سفید دانہ", "soft white spring": "نرم سفید دانہ", "two-row": "دو قطاری", "six-row": "چھ قطاری", upland: "عام (اپ لینڈ) کپاس", pima: "پیما (لمبا ریشہ)",
   hybrid: "ہائبرڈ", inbred: "عام قسم (ہائبرڈ نہیں)", "long-grain": "لمبا دانہ", "medium-grain": "درمیانہ دانہ", "short-grain": "چھوٹا دانہ", aromatic: "خوشبودار", jasmine: "جیسمین (خوشبودار)" };
 const QUALITY_UR = { "baking quality": "روٹی / بیکنگ کے لیے اچھی", "fibre quality": "اچھا ریشہ", protein: "زیادہ پروٹین", oil: "زیادہ تیل", "sugar content": "زیادہ مٹھاس", malting: "مالٹنگ" };
-const instLabel = (c, lang) => arr(c.institutions).map((i) => pick(lang, i.name_ur, i.name_en)).join("، ");
+const instLabel = (c, lang) => arr(c.institutions).map((i) => pick(lang, i.name_ur, i.name_en)).join(SEP(typeof l === "undefined" ? lang : l));
 
 // one plain line on weather: was it proven in weather like yours?
 function climateLine(c, l) {
@@ -89,17 +90,17 @@ function Facts({ c, lang: l }) {
   const tol = [c.tol?.heat && pick(l, "گرمی", "heat"), c.tol?.drought && pick(l, "کم پانی / خشکی", "drought"), c.tol?.salt && pick(l, "کلر (نمکین زمین)", "salt"), c.tol?.flood && pick(l, "کھڑا پانی", "waterlogging"), c.tol?.cold && pick(l, "کورا / سخت سردی", "frost")].filter(Boolean);
   const mat = { early: pick(l, "جلد پکنے والی", "early"), medium: pick(l, "درمیانی", "medium"), late: pick(l, "دیر سے پکنے والی", "late") }[c.maturity];
   const habit = c.habit === "winter" ? pick(l, "ونٹر (سخت سردی مانگتی ہے)", "winter type (needs a cold winter)") : c.habit === "spring" ? pick(l, "اسپرنگ (ہلکی سردی میں ٹھیک)", "spring type (fine in mild winters)") : null;
-  const type = [habit, c.type ? (l === "ur" ? TYPE_UR[c.type.toLowerCase()] : c.type) : null].filter(Boolean).join("، ");
+  const type = [habit, c.type ? (l === "ur" ? TYPE_UR[c.type.toLowerCase()] : c.type) : null].filter(Boolean).join(SEP(typeof l === "undefined" ? lang : l));
   const mds = maunds(c.yieldNote);
   // "sucrose" in a wheat registration is a flour test, not sweetness
   const qual = arr(c.quality).filter((q) => q !== "sugar content" || ["sugarcane", "sugarbeet", "sorghum"].includes(c.crop));
   const rows = [
     [pick(l, "پیداوار", "Yield"), y.t + (mds ? pick(l, ` · تجربات میں تقریباً ${mds} من فی ایکڑ`, ` · about ${mds} maunds/acre in trials`) : ""), y.cls],
-    [pick(l, "بیماری سے بچاؤ", "Disease resistance"), res.length ? res.join("، ") + (mod.length ? pick(l, ` · کچھ حد تک: ${mod.join("، ")}`, ` · partly: ${mod.join(", ")}`) : "") : mod.length ? pick(l, `کچھ حد تک: ${mod.join("، ")}`, `partly: ${mod.join(", ")}`) : NA(l), res.length ? "g" : "na"],
+    [pick(l, "بیماری سے بچاؤ", "Disease resistance"), res.length ? res.join(SEP(typeof l === "undefined" ? lang : l)) + (mod.length ? pick(l, ` · کچھ حد تک: ${mod.join(SEP(typeof l === "undefined" ? lang : l))}`, ` · partly: ${mod.join(", ")}`) : "") : mod.length ? pick(l, `کچھ حد تک: ${mod.join(SEP(typeof l === "undefined" ? lang : l))}`, `partly: ${mod.join(", ")}`) : NA(l), res.length ? "g" : "na"],
     [pick(l, "پکنے کا وقت", "Maturity"), mat ? mat + (c.daysEarlier ? pick(l, ` (پرانی اقسام سے ${c.daysEarlier} دن پہلے)`, ` (${c.daysEarlier} days earlier than checks)`) : "") : NA(l), mat ? "" : "na"],
-    [pick(l, "کیا برداشت کرتی ہے", "Tolerates"), tol.length ? tol.join("، ") : NA(l), tol.length ? "" : "na"],
+    [pick(l, "کیا برداشت کرتی ہے", "Tolerates"), tol.length ? tol.join(SEP(typeof l === "undefined" ? lang : l)) : NA(l), tol.length ? "" : "na"],
     [pick(l, "قسم", "Type"), type || NA(l), type ? "" : "na"],
-    ...(qual.length ? [[pick(l, "معیار", "Quality"), qual.map((q) => (l === "ur" ? QUALITY_UR[q] : q)).filter(Boolean).join("، "), ""]] : []),
+    ...(qual.length ? [[pick(l, "معیار", "Quality"), qual.map((q) => (l === "ur" ? QUALITY_UR[q] : q)).filter(Boolean).join(SEP(typeof l === "undefined" ? lang : l)), ""]] : []),
     [pick(l, "جاری ہونے کا سال", "Released"), c.released || c.year || NA(l), ""],
   ];
   return (
@@ -130,8 +131,8 @@ function Compare({ items, lang: l, onClose }) {
   const rows = [
     [pick(l, "موسم کا میل", "Weather match"), (c) => climateLine(c, l).short],
     [pick(l, "پیداوار", "Yield"), (c) => yieldLine(c, l).t],
-    [pick(l, "بیماری سے بچاؤ", "Resists"), (c) => diseaseUr(c.resistant, l).join("، ") || "–"],
-    [pick(l, "برداشت", "Tolerates"), (c) => [c.tol?.heat && pick(l, "گرمی", "heat"), c.tol?.drought && pick(l, "خشکی", "drought"), c.tol?.salt && pick(l, "کلر", "salt"), c.tol?.cold && pick(l, "سردی", "frost")].filter(Boolean).join("، ") || "–"],
+    [pick(l, "بیماری سے بچاؤ", "Resists"), (c) => diseaseUr(c.resistant, l).join(SEP(typeof l === "undefined" ? lang : l)) || "–"],
+    [pick(l, "برداشت", "Tolerates"), (c) => [c.tol?.heat && pick(l, "گرمی", "heat"), c.tol?.drought && pick(l, "خشکی", "drought"), c.tol?.salt && pick(l, "کلر", "salt"), c.tol?.cold && pick(l, "سردی", "frost")].filter(Boolean).join(SEP(typeof l === "undefined" ? lang : l)) || "–"],
     [pick(l, "پکنے کا وقت", "Maturity"), (c) => ({ early: pick(l, "جلد", "early"), medium: pick(l, "درمیانی", "medium"), late: pick(l, "دیر", "late") }[c.maturity] || "–")],
     [pick(l, "سال", "Year"), (c) => c.released || c.year || "–"],
   ];
@@ -271,14 +272,14 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
 }
 
 function Where({ c, lang }) {
-  const by = arr(c.institutions).map((i) => pick(lang, i.name_ur, i.name_en)).join("، ");
+  const by = arr(c.institutions).map((i) => pick(lang, i.name_ur, i.name_en)).join(SEP(typeof l === "undefined" ? lang : l));
   return (
     <div className="sf-where">
       <b>{pick(lang, "بیج کہاں سے ملے گا", "Where to get it")}</b>
       <ul>
         {by ? <li>{pick(lang, "تیار کرنے والا ادارہ", "Developed by")}: {by}</li> : null}
-        {c.seller?.name && !arr(c.institutions).some((i) => i.name_en === c.seller.name) ? <li>{pick(lang, "تصدیق شدہ بیج / لائسنس", "Certified seed / licence")}: <span className="latin">{c.seller.name}</span></li> : null}
-        {c.regNo ? <li>{pick(lang, "سرکاری رجسٹریشن نمبر", "Registration no.")}: <span className="latin">{c.regNo}</span>{c.pi ? <> · {pick(lang, "جین بینک نمبر", "Gene bank no.")} <span className="latin">PI {c.pi}</span></> : null}</li> : null}
+        {lang !== "ur" && c.seller?.name && !arr(c.institutions).some((i) => i.name_en === c.seller.name) ? <li>{pick(lang, "تصدیق شدہ بیج / لائسنس", "Certified seed / licence")}: <span className="latin">{c.seller.name}</span></li> : null}
+        {lang !== "ur" && c.regNo ? <li>{pick(lang, "سرکاری رجسٹریشن نمبر", "Registration no.")}: <span className="latin">{c.regNo}</span>{c.pi ? <> · {pick(lang, "جین بینک نمبر", "Gene bank no.")} <span className="latin">PI {c.pi}</span></> : null}</li> : null}
       </ul>
     </div>
   );

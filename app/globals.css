@@ -447,3 +447,8 @@ body{padding-bottom:0}
 .sf-box-list>.sf-row-v:first-child{border-top:0}
 .sf-row-v .sf-card-h{width:100%}
 .sf-crop-h{margin:0 0 6px;font-size:1.1rem;color:var(--leaf)}
+
+/* English: left-to-right, Latin type, tighter lines */
+html[lang="en"]{--f-display:var(--f-latin);--f-body:var(--f-latin)}
+html[lang="en"] body{line-height:1.55}
+html[lang="en"] .back svg{transform:scaleX(-1)}

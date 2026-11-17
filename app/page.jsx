@@ -9,6 +9,7 @@ import { TrainedCrops } from "./crops";
 import { WaterScreen } from "./water";
 import { MandiRates, Schemes } from "./mandi";
 import { diagnoseLocally, warmLeafModel } from "./leaf-local";
+import { t, setLang as setAppLang, isUr, locale, placeName } from "@/lib/en";
 
 const LS = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } },
@@ -16,8 +17,8 @@ const LS = {
 };
 
 const WMO = (c) =>
-  c == null ? "" : c === 0 ? "صاف آسمان" : c <= 3 ? "جزوی بادل" : c <= 48 ? "دھند" : c <= 67 ? "بارش / بوندا باندی"
-  : c <= 77 ? "برفباری" : c <= 82 ? "بارش کے جھالے" : "آندھی / گرج چمک";
+  c == null ? "" : c === 0 ? t("صاف آسمان") : c <= 3 ? t("جزوی بادل") : c <= 48 ? t("دھند") : c <= 67 ? t("بارش / بوندا باندی")
+  : c <= 77 ? t("برفباری") : c <= 82 ? t("بارش کے جھالے") : t("آندھی / گرج چمک");
 const RAIN_STATUS = { none: "بارش نہیں", recent: "حال ہی میں بارش ہوئی", forecast: "بارش متوقع ہے", continuous: "مسلسل بارش کا موسم" };
 const IRR = {
   irrigate_now: ["now", "ابھی پانی دیں"],
@@ -44,6 +45,7 @@ async function compress(file) {
 
 export default function Home() {
   const [lang, setLang] = useState("ur");
+  setAppLang(lang); // every text below is drawn in this language
   const [coords, setCoords] = useState(null);
   const [locState, setLocState] = useState("locating"); // locating | ok | denied | error
   const [locSource, setLocSource] = useState(null); // gps | saved | district
@@ -88,8 +90,13 @@ export default function Home() {
     );
   }
   useEffect(() => {
-    setLang(LS.get("kd-lang") || "ur"); locate();
+    setLang(LS.get("kd-lang") === "ur" || !LS.get("kd-lang") ? "ur" : "en"); locate();
   }, []);
+  // the whole page follows the chosen language: right-to-left for Urdu, left-to-right for English
+  useEffect(() => {
+    const h = document.documentElement; h.lang = lang === "ur" ? "ur" : "en"; h.dir = lang === "ur" ? "rtl" : "ltr";
+    document.title = lang === "ur" ? "کسان دوست" : "Kisan Dost";
+  }, [lang]);
 
   // 2. Place name + live weather as soon as coordinates exist.
   useEffect(() => {
@@ -105,7 +112,7 @@ export default function Home() {
   // 3. Regional disease alerts + days 17–30 outlook (cached per place, day and language).
   useEffect(() => {
     if (!loc || !wx) return;
-    const key = `kd-outlook2:${loc.district || `${coords.lat.toFixed(1)},${coords.lon.toFixed(1)}`}:${wx.today}:${lang}`;
+    const key = `kd-outlook3:${loc.district || `${coords.lat.toFixed(1)},${coords.lon.toFixed(1)}`}:${wx.today}:${lang}`;
     const cached = LS.get(key);
     if (cached) { setOutlook(cached); setOutState("ok"); return; }
     setOutState("loading");
@@ -229,7 +236,7 @@ export default function Home() {
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
     } catch (e2) {
       console.error("leaf check failed", e2);
-      setErr(/runtime|model file/.test(String(e2?.message)) ? "ابھی معائنہ شروع نہیں ہو سکا۔ انٹرنیٹ چیک کر کے دوبارہ تصویر لیں۔" : "تصویر کا معائنہ نہیں ہو سکا۔ پتے کی قریب سے صاف تصویر دوبارہ لیں۔");
+      setErr(/runtime|model file/.test(String(e2?.message)) ? t("ابھی معائنہ شروع نہیں ہو سکا۔ انٹرنیٹ چیک کر کے دوبارہ تصویر لیں۔") : t("تصویر کا معائنہ نہیں ہو سکا۔ پتے کی قریب سے صاف تصویر دوبارہ لیں۔"));
     } finally { setBusy(false); }
   }
 
@@ -240,22 +247,22 @@ export default function Home() {
   }
 
   const placeLabel = loc
-    ? [loc.place, loc.district, loc.province_ur || PROVINCES[loc.province] || loc.province].filter(Boolean).join("، ")
+    ? (lang === "ur" ? [placeName(loc.district), PROVINCES[loc.province]] : [loc.place !== loc.district ? loc.place : null, loc.district, loc.province]).filter(Boolean).join(lang === "ur" ? "، " : ", ")
     : "";
 
   // the flood answer on the home screen: first thing on the page when the danger is high
   const floodHot = ["high", "severe"].includes(flood?.summary?.farm?.level);
   const floodCard = <FloodCard data={flood} lang={lang} onOpen={() => { openTab("flood"); window.scrollTo({ top: 0 }); }} />;
-  const placeShort = locState === "locating" ? "جگہ تلاش ہو رہی ہے…" : loc ? (loc.district || loc.place || "میری جگہ") : locState === "ok" ? "میری جگہ" : "جگہ چنیں";
+  const placeShort = locState === "locating" ? t("جگہ تلاش ہو رہی ہے…") : loc ? (placeName(loc.district) || (lang === "ur" ? null : loc.place) || t("میری جگہ")) : locState === "ok" ? t("میری جگہ") : t("جگہ چنیں");
   const camInputs = (compact) => (
     <div className={compact ? "cam-row" : "cam-big"} onPointerDown={() => warmLeafModel().catch(() => {})} onFocus={() => warmLeafModel().catch(() => {})}>
       <label className="cam-main">
         <input id="camera" type="file" accept="image/*" capture="environment" onChange={onPick} disabled={busy} />
-        <span><Ico.camera />{busy ? "معائنہ ہو رہا ہے…" : compact ? "نئی تصویر" : "پتے کی تصویر لیں"}</span>
+        <span><Ico.camera />{busy ? t("معائنہ ہو رہا ہے…") : compact ? t("نئی تصویر") : t("پتے کی تصویر لیں")}</span>
       </label>
       <label className="cam-alt">
         <input id="gallery" type="file" accept="image/*" multiple onChange={onPick} disabled={busy} />
-        <span><Ico.image />گیلری سے</span>
+        <span><Ico.image />{t("گیلری سے")}</span>
       </label>
     </div>
   );
@@ -263,86 +270,85 @@ export default function Home() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>کسان دوست</h1>
+        <h1>{t("کسان دوست")}</h1>
         <button type="button" className="tb-place" aria-expanded={picking} onClick={() => setPicking((v) => !v)}>
           <Ico.pin /><span>{placeShort}</span>
           {wxState === "ok" ? <b className="num">{n0(wx.current?.temp)}°</b> : null}
         </button>
-        <select id="lang" className="tb-lang" aria-label="زبان" value={lang} onChange={(e) => { setLang(e.target.value); LS.set("kd-lang", e.target.value); }}>
+        <select id="lang" className="tb-lang" aria-label={t("زبان")} value={lang} onChange={(e) => { setLang(e.target.value); LS.set("kd-lang", e.target.value); }}>
           <option value="ur">اردو</option>
-          <option value="roman">Roman</option>
           <option value="en">English</option>
         </select>
       </header>
 
       {picking || locState === "denied" || locState === "error" ? (
         <div className="pickloc">
-          <p>{locState === "denied" || locState === "error" ? "فون کی لوکیشن (GPS) نہیں ملی۔ اپنا ضلع چنیں:" : `ابھی کی جگہ: ${placeLabel || "–"}${locSource === "district" ? " (منتخب ضلع)" : ""}`}</p>
+          <p>{locState === "denied" || locState === "error" ? t("فون کی لوکیشن نہیں ملی۔ اپنا ضلع چنیں:") : `${t("ابھی کی جگہ:")} ${placeLabel || "–"}${locSource === "district" ? " " + t("(منتخب ضلع)") : ""}`}</p>
           <div className="pickloc-row">
             <select id="district" defaultValue="" onChange={(e) => pickDistrict(e.target.value)}>
-              <option value="" disabled>ضلع منتخب کریں</option>
+              <option value="" disabled>{t("ضلع منتخب کریں")}</option>
               {Object.keys(PROVINCES).map((p) => (
-                <optgroup key={p} label={PROVINCES[p]}>
-                  {allDistricts().filter((d) => d.province === p).map((d) => <option key={d.district} value={`${p}|${d.district}`}>{d.district}</option>)}
+                <optgroup key={p} label={lang === "ur" ? PROVINCES[p] : p}>
+                  {allDistricts().filter((d) => d.province === p).map((d) => <option key={d.district} value={`${p}|${d.district}`}>{placeName(d.district)}</option>)}
                 </optgroup>
               ))}
             </select>
-            <button type="button" className="btn ghost" onClick={locate}>GPS سے</button>
+            <button type="button" className="btn ghost" onClick={locate}>{t("میری لوکیشن سے")}</button>
           </div>
         </div>
       ) : null}
 
       <main className="screen" id="sheet-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} ref={resultRef}>
         <Safe resetKey={`${tab}|${lang}|${result ? 1 : 0}`}>
-          {tab === "flood" ? <Screen bare title="سیلاب کا خطرہ" sub={placeLabel || "دریا، ڈیم اور آنے والے 7 مہینے"}><FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} /><button type="button" className="btn ghost" style={{ marginTop: 12 }} onClick={() => go("water")}>دریا، بیراج اور نہروں میں پانی دیکھیں ←</button></Screen>
-            : tab === "weather" ? <Screen bare title="موسم" sub={placeShort}><WeatherScreen wx={wx} wxState={wxState} outlook={outlook} outState={outState} /></Screen>
+          {tab === "flood" ? <Screen bare title={t("سیلاب کا خطرہ")} sub={placeLabel || t("دریا، ڈیم اور آنے والے 7 مہینے")}><FloodOutlook data={flood} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : floodState} lang={lang} onRetry={() => setFloodTry((n) => n + 1)} /><button type="button" className="btn ghost" style={{ marginTop: 12 }} onClick={() => go("water")}>{t("دریا، بیراج اور نہروں میں پانی دیکھیں ←")}</button></Screen>
+            : tab === "weather" ? <Screen bare title={t("موسم")} sub={placeShort}><WeatherScreen lang={lang} wx={wx} wxState={wxState} outlook={outlook} outState={outState} /></Screen>
             : tab === "seeds" ? (
-              <Screen bare title="بیج کا مشورہ" sub="آپ کے موسم اور زمین کے مطابق">
+              <Screen bare title={t("بیج کا مشورہ")} sub={t("آپ کے موسم اور زمین کے مطابق")}>
                 <div className="card"><SeedFinder wx={wx} coords={coords} guess={soil} zone={zoneNow} setZone={setZone} lang={lang} /></div>
-                <details className="card fold" id="research"><summary>دنیا کی نئی زرعی تحقیق{newIds.size ? <span className="badge-in num">{newIds.size}</span> : null}</summary><ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} onRetry={() => setResTry((n) => n + 1)} /></details>
+                <details className="card fold" id="research"><summary>{t("دنیا کی نئی زرعی تحقیق")}{newIds.size ? <span className="badge-in num">{newIds.size}</span> : null}</summary><ResearchFeed data={research} state={resState} lang={lang} newIds={newIds} onRetry={() => setResTry((n) => n + 1)} /></details>
               </Screen>
             )
             : tab === "mandi" ? (
-              <Screen bare title="منڈی اور سرکاری اسکیمیں">
-                <div className="card"><MandiRates data={mandi} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : mandiState} onRetry={() => setMandiTry((n) => n + 1)} /></div>
-                <h3 className="sec-title" id="schemes">کسانوں کے لیے سرکاری اسکیمیں</h3>
-                <Schemes />
+              <Screen bare title={t("منڈی اور سرکاری اسکیمیں")}>
+                <div className="card"><MandiRates lang={lang} data={mandi} state={!coords && ["denied", "error"].includes(locState) ? "nogps" : mandiState} onRetry={() => setMandiTry((n) => n + 1)} /></div>
+                <h3 className="sec-title" id="schemes">{t("کسانوں کے لیے سرکاری اسکیمیں")}</h3>
+                <Schemes lang={lang} />
               </Screen>
             )
-            : tab === "water" ? <Screen bare title="دریا، بیراج اور نہریں" sub="ہر ہیڈ ورکس پر پانی کی آمد اور نہروں میں پانی"><WaterScreen data={water} state={waterState} lang={lang} onRetry={() => setWaterTry((n) => n + 1)} /></Screen>
-            : busy ? <div className="card"><div className="thinking"><div className="spin" /><span>تصویر کا معائنہ ہو رہا ہے… چند سیکنڈ</span></div></div>
+            : tab === "water" ? <Screen bare title={t("دریا، بیراج اور نہریں")} sub={t("ہر ہیڈ ورکس پر پانی کی آمد اور نہروں میں پانی")}><WaterScreen data={water} state={waterState} lang={lang} onRetry={() => setWaterTry((n) => n + 1)} /></Screen>
+            : busy ? <div className="card"><div className="thinking"><div className="spin" /><span>{t("تصویر کا معائنہ ہو رہا ہے… چند سیکنڈ")}</span></div></div>
             : result ? (
               <div className="stack">
                 <div className="res-bar">
-                  <button type="button" className="back" onClick={() => { setResult(null); setImages([]); }}><Ico.back />واپس</button>
-                  {images.length ? <div className="thumbs">{images.map((im, i) => <img key={i} src={im.preview} alt={`پتے کی تصویر ${i + 1}`} />)}</div> : null}
+                  <button type="button" className="back" onClick={() => { setResult(null); setImages([]); }}><Ico.back />{t("واپس")}</button>
+                  {images.length ? <div className="thumbs">{images.map((im, i) => <img key={i} src={im.preview} alt={`${t("پتے کی تصویر")} ${i + 1}`} />)}</div> : null}
                 </div>
                 {camInputs(true)}
-                <div className="card"><Result d={result} place={placeLabel} /></div>
-                {result.is_plant === false ? <TrainedCrops /> : null}
+                <div className="card"><Result d={result} place={placeLabel} lang={lang} /></div>
+                {result.is_plant === false ? <TrainedCrops lang={lang} /> : null}
               </div>
             ) : (
               <div className="stack">
                 {floodHot ? floodCard : null}
                 <section className="hero">
-                  <h2>پتے کی تصویر سے بیماری اور دوا</h2>
+                  <h2>{t("پتے کی تصویر سے بیماری اور دوا")}</h2>
                   <ol className="hero-steps">
-                    <li><Ico.camera /><span>پتے کی تصویر</span></li>
-                    <li><Ico.search /><span>بیماری کی پہچان</span></li>
-                    <li><Ico.spray /><span>صحیح دوا</span></li>
+                    <li><Ico.camera /><span>{t("پتے کی تصویر")}</span></li>
+                    <li><Ico.search /><span>{t("بیماری کی پہچان")}</span></li>
+                    <li><Ico.spray /><span>{t("صحیح دوا")}</span></li>
                   </ol>
                   {camInputs(false)}
                   {err ? <p className="board-err" role="alert">{err}</p> : null}
-                  <p className="hero-hint">دن کی روشنی میں ایک پتا قریب سے لیں۔</p>
+                  <p className="hero-hint">{t("دن کی روشنی میں ایک پتا قریب سے لیں۔")}</p>
                 </section>
-                <Tiles wx={wx} wxState={wxState} outlook={outlook} flood={flood} mandi={mandi} go={go} />
+                <Tiles lang={lang} wx={wx} wxState={wxState} outlook={outlook} flood={flood} mandi={mandi} go={go} />
               </div>
             )}
         </Safe>
       </main>
 
-      <nav className="bottomnav" role="tablist" aria-label="حصے">
-        {[["alerts", "معائنہ", Ico.leaf], ["weather", "موسم", Ico.sun], ["flood", "پانی", Ico.water], ["seeds", "بیج", Ico.sprout], ["mandi", "منڈی", Ico.market]].map(([k, l, I]) => (
+      <nav className="bottomnav" role="tablist" aria-label={t("حصے")}>
+        {[["alerts", t("معائنہ"), Ico.leaf], ["weather", t("موسم"), Ico.sun], ["flood", t("پانی"), Ico.water], ["seeds", t("بیج"), Ico.sprout], ["mandi", t("منڈی"), Ico.market]].map(([k, l, I]) => (
           <button key={k} id={`tab-${k}`} role="tab" type="button" aria-selected={tab === k || (k === "flood" && tab === "water")} aria-controls="sheet-panel" onClick={() => { if (k === "alerts") { setResult(null); } openTab(k); window.scrollTo({ top: 0 }); }}>
             <span className="bn-ico"><I />
               {k === "weather" && arr(outlook?.alerts).some((a) => a.level === "high") && tab !== "weather" ? <i className="badge">!</i> : null}
@@ -389,20 +395,20 @@ const Ico = {
 };
 
 const IRR_SOIL = { irrigate_now: "زمین خشک ہو چکی ہے", irrigate_soon: "زمین میں نمی کم ہو رہی ہے", wait_rain: "زمین میں نمی ٹھیک ہے", not_needed: "زمین میں نمی کافی ہے" };
-const rainWord = (mm, future) => (mm == null ? "–" : mm < 1 ? (future ? "بارش کا امکان نہیں" : "بارش نہیں ہوئی") : mm < 5 ? (future ? "ہلکی بارش کا امکان" : "ہلکی بارش ہوئی") : mm < 25 ? (future ? "اچھی بارش کا امکان" : "اچھی بارش ہوئی") : (future ? "تیز بارش کا امکان" : "تیز بارش ہوئی"));
+const rainWord = (mm, future) => (mm == null ? "–" : mm < 1 ? (future ? t("بارش کا امکان نہیں") : t("بارش نہیں ہوئی")) : mm < 5 ? (future ? t("ہلکی بارش کا امکان") : t("ہلکی بارش ہوئی")) : mm < 25 ? (future ? t("اچھی بارش کا امکان") : t("اچھی بارش ہوئی")) : (future ? t("تیز بارش کا امکان") : t("تیز بارش ہوئی")));
 
 // Points 5 and 6: weather warnings, rain and soil moisture
-function WeatherScreen({ wx, wxState, outlook, outState }) {
-  if (wxState !== "ok") return <div className="card"><p className="status">{wxState === "error" ? "موسم ابھی نہیں مل سکا۔ تھوڑی دیر بعد دوبارہ کھولیں۔" : "جگہ ملتے ہی موسم یہاں آ جائے گا۔"}</p></div>;
+function WeatherScreen({ lang, wx, wxState, outlook, outState }) {
+  if (wxState !== "ok") return <div className="card"><p className="status">{wxState === "error" ? t("موسم ابھی نہیں مل سکا۔ تھوڑی دیر بعد دوبارہ کھولیں۔") : t("جگہ ملتے ہی موسم یہاں آ جائے گا۔")}</p></div>;
   const [cls, label] = IRR[wx.irrigation?.need] || IRR.unknown;
   const next = arr(wx.days).filter((d) => !d.past).slice(0, 7);
-  const dayName = (d) => (d.date === wx.today ? "آج" : new Date(d.date + "T00:00").toLocaleDateString("ur-PK", { weekday: "short" }));
+  const dayName = (d) => (d.date === wx.today ? t("آج") : new Date(d.date + "T00:00").toLocaleDateString(locale(), { weekday: "short" }));
   return (
     <>
       <section className="card wx">
         <div className="wx-head">
           <div className="wx-temp"><b className="num">{n0(wx.current?.temp)}°</b><span>{WMO(wx.current?.code)}</span></div>
-          <div className="wx-meta"><span>ہوا میں نمی <b className="num">{n0(wx.current?.humidity)}%</b></span></div>
+          <div className="wx-meta"><span>{t("ہوا میں نمی")}{" "}<b className="num">{n0(wx.current?.humidity)}%</b></span></div>
         </div>
         <div className="days7">
           {next.map((d) => (
@@ -416,38 +422,38 @@ function WeatherScreen({ wx, wxState, outlook, outState }) {
         </div>
       </section>
       <section className="card" id="warnings">
-        <h3 className="card-title">موسم کی وارننگ</h3>
+        <h3 className="card-title">{t("موسم کی وارننگ")}</h3>
         <Alerts outlook={outlook} state={outState} />
       </section>
       <section className="card" id="rain">
-        <h3 className="card-title">بارش اور زمین کی نمی</h3>
+        <h3 className="card-title">{t("بارش اور زمین کی نمی")}</h3>
         <ul className="facts2">
-          <li><span>پچھلا ہفتہ</span><b>{rainWord(wx.rain?.past7_mm, false)}</b></li>
-          <li><span>اگلا ہفتہ</span><b>{rainWord(wx.rain?.next7_mm, true)}</b></li>
-          <li><span>زمین</span><b>{IRR_SOIL[wx.irrigation?.need] || "معلوم نہیں ہو سکا"}</b></li>
+          <li><span>{t("پچھلا ہفتہ")}</span><b>{rainWord(wx.rain?.past7_mm, false)}</b></li>
+          <li><span>{t("اگلا ہفتہ")}</span><b>{rainWord(wx.rain?.next7_mm, true)}</b></li>
+          <li><span>{t("زمین")}</span><b>{t(IRR_SOIL[wx.irrigation?.need] || "معلوم نہیں ہو سکا")}</b></li>
         </ul>
-        <div className={`irr2 ${cls}`}><Ico.drop /><b>{label}</b></div>
+        <div className={`irr2 ${cls}`}><Ico.drop /><b>{t(label)}</b></div>
       </section>
     </>
   );
 }
 
 // Home: the seven things the app does, each with today's answer in a few words
-function Tiles({ wx, wxState, outlook, flood, mandi, go }) {
+function Tiles({ lang, wx, wxState, outlook, flood, mandi, go }) {
   const alerts = arr(outlook?.alerts);
   const high = alerts.filter((a) => a.level === "high").length;
   const fl = flood?.summary?.farm?.level;
-  const FL = { low: "خطرہ کم ہے", moderate: "درمیانہ خطرہ", high: "زیادہ خطرہ", severe: "بہت زیادہ خطرہ" };
+  const FL = { low: t("خطرہ کم ہے"), moderate: t("درمیانہ خطرہ"), high: t("زیادہ خطرہ"), severe: t("بہت زیادہ خطرہ") };
   const dw = flood?.summary?.farm?.water, tar = dw?.kind === "dam" ? dw.pct : null;
   const pick1 = arr(mandi?.items).find((x) => /^Wheat$/i.test(x.name)) || arr(mandi?.items).find((x) => x.farm);
   const tiles = [
-    ["weather", "warnings", Ico.alert, "موسم کی وارننگ", wxState !== "ok" ? "" : high ? `${high} بڑا خطرہ` : alerts.length ? `${alerts.length} احتیاط` : "کوئی خطرہ نہیں", high ? "bad" : ""],
-    ["weather", "rain", Ico.drop, "بارش اور زمین کی نمی", wxState === "ok" ? (IRR[wx.irrigation?.need] || IRR.unknown)[1] : "", "water"],
-    ["flood", null, Ico.water, "سیلاب کی وارننگ", fl ? FL[fl] : "", ["high", "severe"].includes(fl) ? "bad" : "water"],
-    ["water", null, Ico.dam, "ڈیم، دریا اور نہریں", tar != null ? `ڈیم ${Math.min(100, Math.round(tar))}٪ بھرا` : "بیراجوں پر پانی", "water"],
-    ["seeds", null, Ico.sprout, "بیج کا مشورہ", "آپ کے موسم کے مطابق", "leaf"],
-    ["mandi", null, Ico.market, "منڈی کے ریٹ", pick1 ? `${pick1.ur} ${Number(pick1.price).toLocaleString("en-US")} روپے من` : "آج کے ریٹ", "sun"],
-    ["mandi", "schemes", Ico.scheme, "سرکاری اسکیمیں", "کسان کارڈ، ٹریکٹر", "sun"],
+    ["weather", "warnings", Ico.alert, t("موسم کی وارننگ"), wxState !== "ok" ? "" : high ? `${high} ${t("بڑا خطرہ")}` : alerts.length ? `${alerts.length} ${t("احتیاط")}` : t("کوئی خطرہ نہیں"), high ? "bad" : ""],
+    ["weather", "rain", Ico.drop, t("بارش اور زمین کی نمی"), wxState === "ok" ? t((IRR[wx.irrigation?.need] || IRR.unknown)[1]) : "", "water"],
+    ["flood", null, Ico.water, t("سیلاب کی وارننگ"), fl ? FL[fl] : "", ["high", "severe"].includes(fl) ? "bad" : "water"],
+    ["water", null, Ico.dam, t("ڈیم، دریا اور نہریں"), tar != null ? (isUr() ? `ڈیم ${Math.min(100, Math.round(tar))}٪ بھرا` : `Dam ${Math.min(100, Math.round(tar))}% full`) : t("بیراجوں پر پانی"), "water"],
+    ["seeds", null, Ico.sprout, t("بیج کا مشورہ"), t("آپ کے موسم کے مطابق"), "leaf"],
+    ["mandi", null, Ico.market, t("منڈی کے ریٹ"), pick1 ? (isUr() ? `${pick1.ur} ${Number(pick1.price).toLocaleString("en-US")} روپے من` : `${pick1.name} Rs ${Number(pick1.price).toLocaleString("en-US")} / maund`) : t("آج کے ریٹ"), "sun"],
+    ["mandi", "schemes", Ico.scheme, t("سرکاری اسکیمیں"), t("کسان کارڈ، ٹریکٹر"), "sun"],
   ];
   return (
     <div className="tiles">
@@ -463,16 +469,16 @@ function Tiles({ wx, wxState, outlook, flood, mandi, go }) {
 }
 
 function Alerts({ outlook, state }) {
-  if (state === "loading") return <div className="thinking"><div className="spin" /><span>وارننگ تیار ہو رہی ہے…</span></div>;
-  if (state === "error") return <p className="status">وارننگ ابھی نہیں مل سکی۔</p>;
-  if (!outlook) return <p className="status">جگہ اور موسم ملتے ہی وارننگ یہاں آ جائے گی۔</p>;
+  if (state === "loading") return <div className="thinking"><div className="spin" /><span>{t("وارننگ تیار ہو رہی ہے…")}</span></div>;
+  if (state === "error") return <p className="status">{t("وارننگ ابھی نہیں مل سکی۔")}</p>;
+  if (!outlook) return <p className="status">{t("جگہ اور موسم ملتے ہی وارننگ یہاں آ جائے گی۔")}</p>;
   return (
     <div className="stack" style={{ gap: 14 }}>
       {arr(outlook.alerts).length ? (
         <div className="risks">
           {arr(outlook.alerts).map((a, i) => {
             const L = ["high", "medium", "low"].includes(a.level) ? a.level : "medium";
-            return <div className="risk" key={i}><span className={`pill ${L}`}>{LVL[L]}</span><h4>{a.crop}: {a.threat}</h4><p>{a.reason}</p>{a.action ? <div className="when">کیا کریں: {a.action}</div> : null}</div>;
+            return <div className="risk" key={i}><span className={`pill ${L}`}>{t(LVL[L])}</span><h4>{a.crop}: {a.threat}</h4><p>{a.reason}</p>{a.action ? <div className="when">{t("کیا کریں:")}{" "}{a.action}</div> : null}</div>;
           })}
         </div>
       ) : null}
@@ -481,22 +487,22 @@ function Alerts({ outlook, state }) {
   );
 }
 
-function Result({ d, place }) {
+function Result({ d, place, lang }) {
+  const ur = lang === "ur";
   const [tab, setTab] = useState("organic");
-  if (d.is_plant === false) return <div className="notcrop"><b>یہ تصویر پہچانی نہیں جا سکی</b><p>{d.image_note || "پتے کی قریب سے واضح تصویر لیں۔"}</p></div>;
-  if (d.plant_only) return <div className="notcrop plantonly"><b>{d.plant?.name_local}</b><p>{d.image_note}</p></div>;
-  const p = d.plant || {}, h = d.health || {}, t = d.treatment || {};
+  if (d.is_plant === false) return <div className="notcrop"><b>{t("یہ تصویر پہچانی نہیں جا سکی")}</b><p>{(ur ? d.image_note : d.image_note_en) || t("پتے کی قریب سے واضح تصویر لیں۔")}</p></div>;
+  if (d.plant_only) return <div className="notcrop plantonly"><b>{ur ? d.plant?.name_local : d.plant?.name_en}</b><p>{ur ? d.image_note : d.image_note_en}</p></div>;
+  const p = d.plant || {}, h = d.health || {}, tx = d.treatment || {};
   const s = Math.max(0, Math.min(100, Number(h.score) || 0));
   const col = h.status === "healthy" ? "var(--ok)" : h.status === "early" ? "var(--warn)" : "var(--bad)";
   const r = 46, c = 2 * Math.PI * r;
-  const statusTxt = h.label || { healthy: "صحت مند", early: "ابتدائی بیماری", moderate: "درمیانی بیماری", severe: "شدید بیماری" }[h.status] || "";
+  const statusTxt = (ur ? h.label : h.label_en) || { healthy: t("صحت مند"), early: t("ابتدائی بیماری"), moderate: t("درمیانی بیماری"), severe: t("شدید بیماری") }[h.status] || "";
   return (
     <div className="stack">
       {d.advice ? <p className="note" style={{ fontSize: ".95rem", color: "var(--ink)", margin: 0 }}>{d.advice}</p> : null}
       <div className="idrow">
         <div>
-          <p className="plant-name">{p.name_local || p.name_en || "نامعلوم پودا"}</p>
-          <div className="sci">{p.name_en}{p.scientific ? ` · ${p.scientific}` : ""}</div>
+          <p className="plant-name">{(ur ? p.name_local : p.name_en) || t("نامعلوم پودا")}</p>
           <div className="chips">
             {place ? <span className="loc-chip">📍 {place}</span> : null}
             {p.category ? <span className="chip leaf">{p.category}</span> : null}
@@ -504,22 +510,22 @@ function Result({ d, place }) {
           </div>
         </div>
         <div className="gauge">
-          <div className="gauge-word" style={{ borderColor: col, color: col }}>{h.status === "healthy" ? "صحت مند" : "بیماری ملی"}</div>
+          <div className="gauge-word" style={{ borderColor: col, color: col }}>{h.status === "healthy" ? t("صحت مند") : t("بیماری ملی")}</div>
           <div className="lbl">{statusTxt}</div>
         </div>
       </div>
 
       <section>
-        <h3 className="sec-title">ابھی کی تشخیص</h3>
+        <h3 className="sec-title">{t("ابھی کی تشخیص")}</h3>
         <div className="dz">
-          {h.status === "healthy" && !arr(d.diseases).length ? <div className="healthy">پتا صحت مند نظر آ رہا ہے۔</div> :
+          {h.status === "healthy" && !arr(d.diseases).length ? <div className="healthy">{t("پتا صحت مند نظر آ رہا ہے۔")}</div> :
             arr(d.diseases).map((x, i) => {
               const cf = Math.max(0, Math.min(100, Number(x.confidence) || 0));
               return (
                 <article key={i} className={`dis${cf < 50 ? " mild" : ""}`}>
-                  <div className="dis-top"><h3>{x.name_local} <span className="latin" style={{ fontWeight: 400, color: "var(--muted)", fontSize: ".85rem" }}>{x.name_en}</span></h3></div>
-                  <div style={{ fontSize: ".88rem", color: "var(--muted)" }}>{x.pathogen}{x.stage ? ` · مرحلہ: ${x.stage}` : ""}</div>
-                  {arr(x.signs).length ? <ul>{arr(x.signs).map((sg, k) => <li key={k}>{sg}</li>)}</ul> : null}
+                  <div className="dis-top"><h3>{ur ? x.name_local : x.name_en}</h3></div>
+                  <div style={{ fontSize: ".88rem", color: "var(--muted)" }}>{t(x.pathogen)}</div>
+                  {arr(x.signs).length ? <ul>{arr(x.signs).map((sg, k) => <li key={k}>{t(sg)}</li>)}</ul> : null}
                 </article>
               );
             })}
@@ -528,32 +534,31 @@ function Result({ d, place }) {
 
       {arr(d.spray).length ? (
         <section className="spray">
-          <h3 className="sec-title">سفارش کردہ اسپرے (دوا)</h3>
+          <h3 className="sec-title">{t("سفارش کردہ اسپرے (دوا)")}</h3>
           <ol className="spray-list">
             {arr(d.spray).map((x, i) => (
               <li key={i}>
-                <b>{x.ur}</b>
-                <span className="latin">{x.ai}</span>
-                <small>کس کے لیے: {x.target}{i ? " · متبادل دوا" : " · پہلی پسند"}</small>
+                <b>{t(x.ur)}</b>
+                <small>{t("کس کے لیے:")}{" "}{t(x.target)}{i ? " " + t("· متبادل دوا") : " " + t("· پہلی پسند")}</small>
               </li>
             ))}
           </ol>
-          {d.sprayNote ? <p className="spray-note">{d.sprayNote}</p> : null}
-          {d.weatherNote ? <p className="spray-note wx">{d.weatherNote}</p> : null}
-          <ul className="safety">{arr(d.safety).map((x, i) => <li key={i}>{x}</li>)}</ul>
+          {d.sprayNote ? <p className="spray-note">{t(d.sprayNote)}</p> : null}
+          {d.weatherNote ? <p className="spray-note wx">{ur ? d.weatherNote : d.weatherNote_en}</p> : null}
+          <ul className="safety">{arr(d.safety).map((x, i) => <li key={i}>{t(x)}</li>)}</ul>
         </section>
       ) : d.diseases?.length ? (
-        <section className="spray"><h3 className="sec-title">اسپرے</h3><p className="spray-note">{d.sprayNote || "اس مسئلے کے لیے کیمیائی زہر کی ضرورت نہیں؛ نیچے دیے گئے طریقے اپنائیں۔"}</p></section>
+        <section className="spray"><h3 className="sec-title">{t("اسپرے")}</h3><p className="spray-note">{t(d.sprayNote) || t("اس مسئلے کے لیے کیمیائی زہر کی ضرورت نہیں؛ نیچے دیے گئے طریقے اپنائیں۔")}</p></section>
       ) : null}
 
 
       {arr(d.risks).length ? (
         <section>
-          <h3 className="sec-title">آنے والے خطرے کی وارننگ</h3>
+          <h3 className="sec-title">{t("آنے والے خطرے کی وارننگ")}</h3>
           <div className="risks">
             {arr(d.risks).map((x, i) => {
               const L = ["high", "medium", "low"].includes(x.level) ? x.level : "medium";
-              return <div className="risk" key={i}><span className={`pill ${L}`}>{LVL[L]}</span><h4>{x.name_local}</h4><p>{x.reason}</p>{x.when ? <div className="when">کب: {x.when}</div> : null}</div>;
+              return <div className="risk" key={i}><span className={`pill ${L}`}>{t(LVL[L])}</span><h4>{x.name_local}</h4><p>{x.reason}</p>{x.when ? <div className="when">{t("کب:")}{" "}{x.when}</div> : null}</div>;
             })}
           </div>
         </section>
@@ -561,27 +566,26 @@ function Result({ d, place }) {
 
       {d.irrigation?.advice ? (
         <section>
-          <h3 className="sec-title">اس فصل کی آبپاشی</h3>
+          <h3 className="sec-title">{t("اس فصل کی آبپاشی")}</h3>
           <p style={{ margin: 0 }}>{d.irrigation.advice}</p>
-          {d.irrigation.next_watering ? <p style={{ margin: 0 }}><b>اگلا پانی:</b> {d.irrigation.next_watering}</p> : null}
+          {d.irrigation.next_watering ? <p style={{ margin: 0 }}><b>{t("اگلا پانی:")}</b> {d.irrigation.next_watering}</p> : null}
           {d.irrigation.method_tip ? <p className="note" style={{ marginTop: 6 }}>{d.irrigation.method_tip}</p> : null}
         </section>
       ) : null}
 
 
       <section>
-        <h3 className="sec-title">مزید علاج اور بچاؤ</h3>
+        <h3 className="sec-title">{t("مزید علاج اور بچاؤ")}</h3>
         <div className="tabs" role="tablist">
-          {[["organic", "قدرتی / گھریلو"], ["cultural", "کاشت کے طریقے"], ["chemical", "کیمیائی"]].map(([k, l]) => (
+          {[["organic", t("قدرتی / گھریلو")], ["cultural", t("کاشت کے طریقے")], ["chemical", t("کیمیائی")]].map(([k, l]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
-        <ul className="list">{(arr(t[tab]).length ? arr(t[tab]) : ["کوئی تجویز نہیں"]).map((x, i) => <li key={i}>{x}</li>)}</ul>
-        {tab === "chemical" ? <p className="note">دوا کی مقدار اور وقفہ ڈبے کے لیبل کے مطابق رکھیں۔</p> : null}
+        <ul className="list">{(arr(tx[tab]).length ? arr(tx[tab]) : ["کوئی تجویز نہیں"]).map((x, i) => <li key={i}>{typeof x === "string" ? t(x) : `${t(x.ur)} — ${t(x.target)}`}</li>)}</ul>
+        {tab === "chemical" ? <p className="note">{t("دوا کی مقدار اور وقفہ ڈبے کے لیبل کے مطابق رکھیں۔")}</p> : null}
       </section>
 
-      {arr(d.prevention).length ? <section><h3 className="sec-title">بچاؤ</h3><ul className="list">{arr(d.prevention).map((x, i) => <li key={i}>{x}</li>)}</ul></section> : null}
-      {d.image_note ? <p className="note">تصویر کے بارے میں: {d.image_note}</p> : null}
+      {arr(d.prevention).length ? <section><h3 className="sec-title">{t("بچاؤ")}</h3><ul className="list">{arr(d.prevention).map((x, i) => <li key={i}>{x}</li>)}</ul></section> : null}
     </div>
   );
 }

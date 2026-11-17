@@ -72,7 +72,8 @@ export async function diagnoseLocally(images, weather) {
   // Checked on real phone photos never used in training: at 60% or more the crop name was right 99.5% of the time.
   // Real phone photos never used in training: naming the best crop when it holds 30% or more was right 94% of the time;
   // below that only 46%, so then the app asks for one clearer photo instead of guessing.
-  if (cropP[crop] < CROP_SURE) return { source: "kisan-dost-model", is_plant: false, image_note: "پتا صاف نظر نہیں آیا۔ ایک ہی پتے کی قریب سے، دن کی روشنی میں تصویر لیں تاکہ پتا پوری تصویر میں ہو۔" };
+  if (cropP[crop] < CROP_SURE) return { source: "kisan-dost-model", is_plant: false, image_note: "پتا صاف نظر نہیں آیا۔ ایک ہی پتے کی قریب سے، دن کی روشنی میں تصویر لیں تاکہ پتا پوری تصویر میں ہو۔",
+    image_note_en: "The leaf was not clear. Take one leaf close up, in daylight, so that it fills the photo." };
   return forCrop(probs, crop, weather, cropP[crop]);
 }
 
@@ -89,20 +90,24 @@ function forCrop(probs, crop, weather, cropSure) {
 }
 
 function plantOnly(crop, p, leafPhoto) {
-  const name = CROPS_UR[crop] || crop;
+  const name = CROPS_UR[crop] || crop, en = (CROPS_EN[crop] || crop).toLowerCase();
   return {
     source: "kisan-dost-model", is_plant: true, plant_only: true,
     plant: { name_local: name, name_en: CROPS_EN[crop] || crop, confidence: Math.round(Math.min(1, p) * 100) },
     image_note: leafPhoto
       ? `یہ ${name} کا پتا ہے۔ بیماری جاننے کے لیے متاثرہ حصے کی قریب سے، دن کی روشنی میں ایک اور تصویر لیں۔`
       : `یہ ${name} کا پودا ہے۔ بیماری جاننے کے لیے ایک پتے کی قریب سے، دن کی روشنی میں تصویر لیں۔`,
+    image_note_en: leafPhoto
+      ? `This is a ${en} leaf. To find the disease, take one more photo of the affected part close up, in daylight.`
+      : `This is a ${en} plant. To find the disease, take a photo of one leaf close up, in daylight.`,
   };
 }
 
 function notOurCrop() {
   return {
     source: "kisan-dost-model", is_plant: false,
-    image_note: "یہ تصویر ان پودوں کے پتے کی نہیں لگتی جن کی ایپ جانچ کرتی ہے (نیچے فہرست دیکھیں)۔ صرف ایک پتے کی قریب سے، دن کی روشنی میں صاف تصویر لیں (پیچھے زمین یا ہاتھ ہو تو ٹھیک ہے)۔ غلط اندازے سے بچنے کے لیے ہم کوئی بیماری یا اسپرے نہیں بتا رہے۔",
+    image_note: "یہ تصویر ان پودوں کے پتے کی نہیں ہے جن کی ایپ جانچ کرتی ہے (نیچے فہرست دیکھیں)۔ صرف ایک پتے کی قریب سے، دن کی روشنی میں صاف تصویر لیں (پیچھے زمین یا ہاتھ ہو تو ٹھیک ہے)۔ غلط اندازے سے بچنے کے لیے ہم کوئی بیماری یا اسپرے نہیں بتا رہے۔",
+    image_note_en: "This photo is not a leaf of the plants the app checks (see the list below). Take a clear photo of one leaf close up, in daylight (soil or a hand behind it is fine). To avoid a wrong answer, no disease or spray is named.",
   };
 }
 
@@ -121,17 +126,20 @@ function buildResult(top, wx, cropAll) {
     source: "kisan-dost-model",
     is_plant: true,
     plant: { name_local: CROPS_UR[crop] || crop, name_en: CROPS_EN[crop] || crop, confidence: Math.round(Math.min(1, cropP) * 100) },
-    health: { status: healthy ? "healthy" : best.p >= 0.8 ? "moderate" : "early", label: healthy ? "صحت مند" : kb.ur, score: healthy ? 92 : Math.max(20, 70 - Math.round(best.p * 40)) },
+    health: { status: healthy ? "healthy" : best.p >= 0.8 ? "moderate" : "early", label: healthy ? "صحت مند" : kb.ur, label_en: healthy ? "Healthy" : kb.en, score: healthy ? 92 : Math.max(20, 70 - Math.round(best.p * 40)) },
     diseases: healthy ? [] : [{ name_local: kb.ur, name_en: kb.en, pathogen: KIND_UR[kb.kind] || "", confidence: conf, signs: kb.signs || [] }],
     alternatives: [],
     spray: kb.spray || [],
     sprayNote: kb.note || "",
-    treatment: { organic: kb.organic || [], chemical: (kb.spray || []).map((s) => `${s.ur} (${s.ai}) — ${s.target}`), cultural: kb.cultural || [] },
+    treatment: { organic: kb.organic || [], chemical: kb.spray || [], cultural: kb.cultural || [] },
     prevention: [],
     safety: SAFETY_UR,
     weatherNote: !healthy && ["fungus", "bacteria"].includes(kb.kind) && wet
       ? `اگلے دنوں نمی ${humid ?? "–"}% اور بارش کا امکان ہے؛ ایسے موسم میں یہ بیماری تیزی سے پھیلتی ہے، اسپرے میں دیر نہ کریں۔ بارش سے فوراً پہلے اسپرے نہ کریں۔`
       : !healthy && kb.kind === "pest" && temp >= 30 ? `گرم موسم (${Math.round(temp)}°) میں رس چوسنے والے کیڑے تیزی سے بڑھتے ہیں؛ صبح یا شام کے وقت اسپرے کریں۔` : "",
+    weatherNote_en: !healthy && ["fungus", "bacteria"].includes(kb.kind) && wet
+      ? `Humidity is ${humid ?? "–"}% and rain is likely in the coming days; this disease spreads fast in such weather, so do not delay the spray. Do not spray just before rain.`
+      : !healthy && kb.kind === "pest" && temp >= 30 ? `In hot weather (${Math.round(temp)}°) sucking insects multiply fast; spray in the morning or evening.` : "",
     advice: "",
     image_note: "",
   };

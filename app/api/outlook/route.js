@@ -8,5 +8,5 @@ export async function POST(req) {
   let body;
   try { body = await req.json(); } catch { return Response.json({ error: "bad request" }, { status: 400 }); }
   if (!body?.weather?.days?.length) return Response.json({ error: "no weather" }, { status: 400 });
-  return Response.json(weatherAlerts(body.weather));
+  return Response.json(weatherAlerts(body.weather, new Date(), body.lang === "ur" || !body.lang ? "ur" : "en"));
 }
