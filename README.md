@@ -18,7 +18,7 @@ The app's seven features, reached from the home screen tiles and the five bottom
 
 | Screen (bottom tab) | What the farmer gets | Where it comes from |
 |---|---|---|
-| **معائنہ** (leaf check, home) | Disease name, how sure, recommended spray (active ingredient), organic / field steps, safety. Refuses photos that are not a leaf of the 29 crops, fruit trees, trees and roses the model knows. Weather now, 7 days, watering advice, area disease warnings. | Our leaf model `public/models/kisan-leaf-v5.onnx` + `lib/leaf-kb.js`. Weather: Open-Meteo. Warnings: `lib/disease-rules.js` (crop calendar + 16-day forecast). |
+| **معائنہ** (leaf check, home) | Disease name, how sure, recommended spray (active ingredient), organic / field steps, safety. Refuses photos that are not a leaf of the 29 crops, fruit trees, trees and roses the model knows. Weather now, 7 days, watering advice, area disease warnings. | Our leaf model `public/models/kisan-leaf-v6.onnx` + `lib/leaf-kb.js`. Weather: Open-Meteo. Warnings: `lib/disease-rules.js` (crop calendar + 16-day forecast). |
 | **سیلاب** (flood) | One danger level (low / medium / high / very high) for the farm and each river, month by month for the next 7 months; water stored now vs last year with the report date; rain expected vs normal; what to do. The same answer is shown as a card on the home screen (at the top when the danger is high). | ECMWF seasonal forecast, Federal Flood Commission (Tarbela, Mangla), India CWC (Bhakra, Pong, Ranjit Sagar), GloFAS river flow, our trained model for Chenab / Ravi / Sutlej. Levels are decided in one place: `lib/flood/summary.js`. |
 | **بیج** (seeds) | Varieties from the top institutions, compared by the weather where each was tested vs the farm's weather. "Best" only if proven in similar weather **and** higher yield than check varieties; otherwise it says so honestly. | Official variety registrations (Crossref), NASA POWER climate normals. |
 | **تحقیق** (research) | New research on crops grown in Pakistan, labelled in Urdu by crop and subject from the paper's title, with a crop filter and the original link. Laboratory-only papers are left out (`lib/research-tags.js`). | Europe PMC, Google News, institution feeds. |
@@ -85,8 +85,8 @@ Outside Vercel the daily refresh jobs in `vercel.json` do not run. That is fine:
 
 | Model | File | Runs where | Size |
 |---|---|---|---|
-| **Leaf disease model** | `public/models/kisan-leaf-v5.onnx` | In the farmer's browser (phone), with `onnxruntime-web` from `public/ort/` | 25 MB (downloaded once, then cached; works offline) |
-| Leaf model labels + check threshold | `public/models/kisan-leaf-v5-labels.json` | Browser | small |
+| **Leaf disease model** | `public/models/kisan-leaf-v6.onnx` | In the farmer's browser (phone), with `onnxruntime-web` from `public/ort/` | 25 MB (downloaded once, then cached; works offline) |
+| Leaf model labels + check threshold | `public/models/kisan-leaf-v6-labels.json` | Browser | small |
 | Leaf model report card (accuracy per disease) | `public/models/kisan-leaf-card.json` | – (documentation) | small |
 | Treatment for each disease | `lib/leaf-kb.js` | Browser | – |
 | **Flood model** (Chenab, Ravi, Sutlej) | `data/flood-model.json` | Server (`lib/flood/eastern.js`) | small |
@@ -154,7 +154,7 @@ kisan-dost/
 └─ start-kisan-dost.bat      double-click to run on Windows
 ```
 
-**What happens when a farmer takes a photo:** `page.jsx` shrinks the photo → `leaf-local.js` runs `kisan-leaf-v5.onnx` on the phone → if it is not one of our crops it says so; otherwise it takes the disease → `lib/leaf-kb.js` gives the spray and steps → `page.jsx` shows the result. Nothing is sent to a server.
+**What happens when a farmer takes a photo:** `page.jsx` shrinks the photo → `leaf-local.js` runs `kisan-leaf-v6.onnx` on the phone → if it is not one of our crops it says so; otherwise it takes the disease → `lib/leaf-kb.js` gives the spray and steps → `page.jsx` shows the result. Nothing is sent to a server.
 
 **What happens when the app opens:** GPS → `/api/location` (place name) and `/api/weather` → `/api/outlook` (area warnings) → the flood, seed and research screens fetch their own data when needed. Answers are cached so the next farmer gets them instantly.
 
@@ -171,3 +171,18 @@ kisan-dost/
 - Soil moisture is a weather-model estimate, not a field sensor.
 - Seed recommendations are only made when the facts support them; for most areas the honest answer today is "keep your locally approved variety".
 - Mandi rates cover Punjab markets only (that is what AMIS publishes); farmers elsewhere see the nearest Punjab market with its distance. Schemes listed are Punjab's.
+
+### Leaf model v6 (field photos)
+v5 fine-tuned 4 more epochs with 3,932 real field photos added (PlantDoc tomato/potato/maize, Indian and Bangladeshi rice fields, citrus orchard, cotton field), field and phone photos weighted 3x. Same 180 classes. Held-out results with the app's decision rule (v5 → v6):
+
+| Test | v5 | v6 |
+|---|---|---|
+| FIELD20 (787 field photos): right crop | 15.9% | 90.3% |
+| FIELD20: right disease | 11.4% | 74.3% |
+| FIELD20: asked to retake | 84.1% | 17.2% |
+| WILD20 (2,127 iNaturalist photos): right crop | 74.3% | 76.0% |
+| Other plants refused | 64.2% | 73.5% |
+| DigiGreen farmer phone photos (672, never trained on): right crop / wrong crop | 63.4% / 15.0% | 64.9% / 12.5% |
+| ORIG20 / UNSEEN / NEW20: right disease | 95.6 / 97.5 / 92.1% | 95.8 / 97.3 / 92.2% |
+
+Scripts: `scripts/leaf-model/v3/fetch_field.py`, `ft6.py`, `eval_v6.py`, `eval_field.py`.

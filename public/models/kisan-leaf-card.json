@@ -1,6 +1,6 @@
 {
- "name": "Kisan Dost leaf model v5",
- "trained": "2026-11-16",
+ "name": "Kisan Dost leaf model v6",
+ "trained": "2026-11-18",
  "test_accuracy": 95.76,
  "crop_accuracy": 99.85,
  "test_photos": 11367,
@@ -1109,5 +1109,16 @@
    "other_plants_refused": 64.2
   },
   "same_leaf_5_shots_same_answer": 89.3
+ },
+ "tests_v6": {
+  "FIELD20_crop_right": 90.3,
+  "FIELD20_disease_right": 74.3,
+  "WILD20_crop_right": 76.0,
+  "other_plants_refused": 73.5,
+  "DIGI_farmer_photos_crop_right": 64.9,
+  "DIGI_wrong_crop": 12.5,
+  "ORIG20_disease_right": 95.8,
+  "UNSEEN_disease_right": 97.3,
+  "NEW20_disease_right": 92.2
  }
 }

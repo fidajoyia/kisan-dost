@@ -26,8 +26,8 @@ export function warmLeafModel() {
     ort.env.wasm.wasmPaths = ORT_CDN;
     ort.env.wasm.numThreads = 1; // no cross-origin isolation on a normal page
     const [buf, lab] = await Promise.all([
-      fetch("/models/kisan-leaf-v5.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
-      fetch("/models/kisan-leaf-v5-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v6.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v6-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
     ]);
     session = await ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
     labels = Array.isArray(lab) ? lab : lab.labels; // v2: {labels, guard}
