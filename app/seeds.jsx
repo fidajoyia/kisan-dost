@@ -1,5 +1,6 @@
 "use client";
 // Seed finder: registered varieties from the world's top agricultural institutions; the farmer sorts, filters and compares the facts.
+import { urduName } from "@/lib/urdu-name";
 import { useEffect, useMemo, useState } from "react";
 import { tempSummary, ZONES } from "@/lib/seeds";
 import { CROPS } from "@/lib/seed-intel/crops";
@@ -141,7 +142,7 @@ function Compare({ items, lang: l, onClose }) {
       <div className="sf-row"><h3 className="sec-title" style={{ margin: 0 }}>{pick(l, "موازنہ", "Compare")}</h3><button type="button" className="btn ghost" onClick={onClose}>{pick(l, "بند کریں", "Close")}</button></div>
       <div className="wx-table-wrap">
         <table className="sf-cmp-t">
-          <thead><tr><th />{items.map((c) => <th key={c.id} className="latin">{c.name}</th>)}</tr></thead>
+          <thead><tr><th />{items.map((c) => <th key={c.id} className={l === "ur" ? "" : "latin"}>{l === "ur" ? urduName(c.name) : c.name}</th>)}</tr></thead>
           <tbody>{rows.map(([k, f]) => <tr key={k}><th>{k}</th>{items.map((c) => <td key={c.id}>{f(c)}</td>)}</tr>)}</tbody>
         </table>
       </div>
@@ -249,7 +250,7 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
                     return (
                       <div key={id} className={`sf-row-v${on ? " on" : ""}`}>
                         <button type="button" className="sf-card-h" aria-expanded={on} onClick={() => setOpen(on ? null : id)}>
-                          <span><b><span className="num">{k + 1}.</span> <span className="latin">{shortName(c.name)}</span></b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
+                          <span><b><span className="num">{k + 1}.</span> {lang === "ur" ? <span>{urduName(shortName(c.name))}</span> : <span className="latin">{shortName(c.name)}</span>}</b><small>{instLabel(c, lang)}{c.released || c.year ? ` · ${c.released || c.year}` : ""}</small></span>
                         </button>
                         {on ? (
                           <div className="sf-detail">
