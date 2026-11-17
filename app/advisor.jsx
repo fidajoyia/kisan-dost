@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CENTERS, RANKING, centerById } from "@/lib/research-centers";
 import { CROP_UR } from "@/lib/research-tags";
 import { IMPORT_ROUTES, IMPORT_CONTACTS, IMPORT_UPDATED } from "@/lib/import-guide";
@@ -12,27 +12,7 @@ const dirOf = (lang) => (lang === "ur" ? "rtl" : "ltr");
 
 export function ResearchFeed({ data, state, lang, newIds, onRetry }) {
   const [crop, setCrop] = useState("all");
-  const [urHead, setUrHead] = useState({}); // id → Urdu headline, translated on the phone when the server could not
-  const items = arr(data?.items).map((r) => (r.headline_ur || !urHead[r.id] ? r : { ...r, headline_ur: urHead[r.id] }));
-  useEffect(() => {
-    if (lang !== "ur") return;
-    let saved = {}; try { saved = JSON.parse(localStorage.getItem("kd-rs-ur") || "{}"); } catch {}
-    setUrHead(saved);
-    const todo = arr(data?.items).filter((r) => !r.headline_ur && !saved[r.id] && r.title);
-    if (!todo.length) return;
-    let alive = true;
-    Promise.all(todo.map((r) => fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ur&dt=t&q=" + encodeURIComponent(r.title.slice(0, 400)))
-      .then((x) => x.json()).then((j) => [r.id, (j?.[0] || []).map((p) => p?.[0] || "").join("").trim()]).catch(() => [r.id, ""])))
-      .then((pairs) => {
-        if (!alive) return;
-        const next = { ...saved };
-        for (const [id, s] of pairs) if (/[\u0600-\u06FF]/.test(s)) next[id] = s;
-        const keep = Object.fromEntries(Object.entries(next).slice(-200));
-        try { localStorage.setItem("kd-rs-ur", JSON.stringify(keep)); } catch {}
-        setUrHead(keep);
-      });
-    return () => { alive = false; };
-  }, [data, lang]);
+  const items = arr(data?.items);
   // crops that have research right now, most items first
   const counts = {};
   for (const r of items) if (r.crop && r.crop !== "other") counts[r.crop] = (counts[r.crop] || 0) + 1;
@@ -57,7 +37,7 @@ export function ResearchFeed({ data, state, lang, newIds, onRetry }) {
                 const c = centerById(r.center);
                 return (
                   <article key={r.id} className="rs">
-                    <h4>{newIds.has(r.id) ? <span className="new">{pick(lang, "نیا", "New")}</span> : null}{lang === "ur" ? r.headline_ur || r.title_ur : r.title}</h4>{lang === "ur" && r.headline_ur ? <p className="rs-tags">{r.title_ur}</p> : null}
+                    <h4>{newIds.has(r.id) ? <span className="new">{pick(lang, "نیا", "New")}</span> : null}<span className="latin rs-title">{r.title}</span></h4>{lang === "ur" ? <p className="rs-tags">{r.title_ur}</p> : null}
                     <p className="rs-meta">{c ? <span>{pick(lang, c.name_ur, c.short)}</span> : null}{r.date ? <span className="num">{r.date}</span> : null}</p>
                   </article>
                 );

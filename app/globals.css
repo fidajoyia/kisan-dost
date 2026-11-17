@@ -454,3 +454,4 @@ html[lang="en"] body{line-height:1.55}
 html[lang="en"] .back svg{transform:scaleX(-1)}
 
 .rs-tags{margin:2px 0 0;font-size:.85rem;color:var(--leaf)}
+.rs-title{display:block;text-align:left;font-weight:600}
