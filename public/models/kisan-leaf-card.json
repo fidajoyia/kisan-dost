@@ -1,5 +1,5 @@
 {
- "name": "Kisan Dost leaf model v6",
+ "name": "Kisan Dost leaf model v7",
  "trained": "2026-11-18",
  "test_accuracy": 95.76,
  "crop_accuracy": 99.85,
@@ -1120,5 +1120,29 @@
   "ORIG20_disease_right": 95.8,
   "UNSEEN_disease_right": 97.3,
   "NEW20_disease_right": 92.2
+ },
+ "tests_v7": {
+  "note": "held-out photos, app decision rule with 3 views (centre, whole photo fitted, mirror); v6 -> v7",
+  "farmer phone photos (Digital Green, 336)": {
+   "right crop": "65.8 -> 76.8",
+   "wrong crop": "14.0 -> 9.8",
+   "retake": "20.2 -> 13.4"
+  },
+  "field photos (787)": {
+   "right crop": "96.1 -> 96.4",
+   "right disease when named": "91.7 -> 92.4"
+  },
+  "wheat/rice/maize field photos (1035)": {
+   "right crop": "74.1 -> 100.0",
+   "right disease when named": "75.6 -> 96.3",
+   "caution": "same source as training photos; 107 have a near-identical training photo"
+  },
+  "iNaturalist phone photos (1568)": {
+   "right crop": "86.0 -> 85.2"
+  },
+  "data-set photos ORIG20/UNSEEN/NEW20": {
+   "right disease when named": "98.7/98.9/96.9 -> 98.2/99.1/97.5"
+  },
+  "other plants refused (800)": "87.5 -> 88.5"
  }
 }

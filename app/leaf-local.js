@@ -26,8 +26,8 @@ export function warmLeafModel() {
     ort.env.wasm.wasmPaths = ORT_CDN;
     ort.env.wasm.numThreads = 1; // no cross-origin isolation on a normal page
     const [buf, lab] = await Promise.all([
-      fetch("/models/kisan-leaf-v6.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
-      fetch("/models/kisan-leaf-v6-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v7.onnx").then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).catch(() => { throw new Error("model file missing"); }),
+      fetch("/models/kisan-leaf-v7-labels.json").then((r) => r.json()).catch(() => { throw new Error("model file missing"); }),
     ]);
     session = await ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
     labels = Array.isArray(lab) ? lab : lab.labels; // v2: {labels, guard}
@@ -37,14 +37,27 @@ export function warmLeafModel() {
   return loading;
 }
 
-// same preprocessing as training: shortest side 256, centre crop 224, ImageNet normalisation
-async function toTensor(dataUrl) {
+// Each photo is looked at three ways and the answers averaged (more stable on real field photos):
+// 1) as in training: shortest side 256, centre 224; 2) the whole photo fitted in the square; 3) view 1 mirrored.
+async function toTensors(dataUrl) {
   const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = dataUrl; });
   const k = 256 / Math.min(img.width, img.height);
   const w = Math.max(224, Math.round(img.width * k)), h = Math.max(224, Math.round(img.height * k));
+  const f = 224 / Math.max(img.width, img.height), fw = img.width * f, fh = img.height * f;
+  return [
+    tensorOf((g) => g.drawImage(img, -(w - 224) / 2, -(h - 224) / 2, w, h)),
+    tensorOf((g) => { g.fillStyle = meanColour(img); g.fillRect(0, 0, 224, 224); g.drawImage(img, (224 - fw) / 2, (224 - fh) / 2, fw, fh); }),
+    tensorOf((g) => { g.translate(224, 0); g.scale(-1, 1); g.drawImage(img, -(w - 224) / 2, -(h - 224) / 2, w, h); }),
+  ];
+}
+function meanColour(img) {
+  const c = document.createElement("canvas"); c.width = 1; c.height = 1; const g = c.getContext("2d");
+  g.imageSmoothingQuality = "high"; g.drawImage(img, 0, 0, 1, 1); const d = g.getImageData(0, 0, 1, 1).data; return `rgb(${d[0]},${d[1]},${d[2]})`;
+}
+function tensorOf(draw) {
   const c = document.createElement("canvas"); c.width = 224; c.height = 224;
   const g = c.getContext("2d"); g.imageSmoothingQuality = "high";
-  g.drawImage(img, -(w - 224) / 2, -(h - 224) / 2, w, h);
+  draw(g);
   const px = g.getImageData(0, 0, 224, 224).data, n = 224 * 224, out = new Float32Array(3 * n);
   for (let i = 0; i < n; i++) for (let ch = 0; ch < 3; ch++) out[ch * n + i] = (px[i * 4 + ch] / 255 - MEAN[ch]) / STD[ch];
   return new window.ort.Tensor("float32", out, [1, 3, 224, 224]);
@@ -56,10 +69,14 @@ export async function diagnoseLocally(images, weather) {
   const probs = new Float32Array(labels.length);
   let sim = 1;
   for (const im of images) {
-    const t = await toTensor(`data:${im.mediaType || "image/jpeg"};base64,${im.data}`);
-    const out = await session.run({ pixel_values: t });
-    const p = out.probs.data; for (let i = 0; i < p.length; i++) probs[i] += p[i] / images.length;
-    if (out.sim) sim = Math.min(sim, out.sim.data[0]);
+    const views = await toTensors(`data:${im.mediaType || "image/jpeg"};base64,${im.data}`);
+    let best = -1;
+    for (const t of views) {
+      const out = await session.run({ pixel_values: t });
+      const p = out.probs.data; for (let i = 0; i < p.length; i++) probs[i] += p[i] / (images.length * views.length);
+      if (out.sim) best = Math.max(best, out.sim.data[0]);
+    }
+    if (best >= 0) sim = Math.min(sim, best);
   }
   // Not a leaf of a crop we check (a person, a wall, a leaf of another plant): say so, never name a disease.
   const other = labels.indexOf("other");
