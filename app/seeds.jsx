@@ -201,12 +201,21 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
   const [counts, setCounts] = useState(null);
   const [tops, setTops] = useState({}); // crop id -> best seed (or null when none), filled as each answer arrives
   const [open, setOpen] = useState(null);
+  const [tryN, setTryN] = useState(0);
 
+  // The crop list can take up to a minute when the server refreshes its seed data, so keep waiting and retry
+  // (3 tries) instead of showing an error while it is still coming.
   useEffect(() => {
     const c = LS.get("kd-seed-counts");
-    if (c && Date.now() - c.t < 24 * 3600e3) { setCounts(c.d.counts); return; }
-    fetch("/api/seeds?counts=1").then((r) => r.json()).then((d) => { if (d.counts) { setCounts(d.counts); LS.set("kd-seed-counts", { t: Date.now(), d }); } }).catch(() => setCounts({}));
-  }, []);
+    if (!tryN && c && Date.now() - c.t < 24 * 3600e3 && Object.values(c.d.counts || {}).some((n) => n > 0)) { setCounts(c.d.counts); return; }
+    setCounts(null);
+    let alive = true;
+    const get = (left) => fetch("/api/seeds?counts=1").then((r) => r.json())
+      .then((d) => { if (!Object.values(d.counts || {}).some((n) => n > 0)) throw 0; if (alive) { setCounts(d.counts); LS.set("kd-seed-counts", { t: Date.now(), d }); } })
+      .catch(() => { if (!alive) return; if (left > 0) setTimeout(() => alive && get(left - 1), 4000); else setCounts({}); });
+    get(2);
+    return () => { alive = false; };
+  }, [tryN]);
   const crops = counts ? CROPS.filter((c) => counts[c.id] > 0) : [];
   // The best seed of every crop, from any research centre in the world (server ranking: weather match, yield, disease, land).
   useEffect(() => {
@@ -236,8 +245,8 @@ export function SeedFinder({ wx, coords, zone, setZone, lang }) {
         </div>
       </section>
       {!coords ? <p className="status">{pick(lang, "لوکیشن ملتے ہی آپ کے علاقے کے مطابق بیج دکھائے جائیں گے۔", "Seeds for your area appear once your location is available.")}</p>
-        : !ready.length && waiting ? <div className="thinking"><div className="spin" /><span>{pick(lang, "ہر فصل کی بہترین اقسام تلاش ہو رہی ہیں…", "Finding the best varieties for each crop…")}</span></div>
-        : !ready.length ? <p className="status err">{pick(lang, "ابھی بیج کی معلومات نہیں مل سکیں۔ تھوڑی دیر بعد دوبارہ کھولیں۔", "Seed information could not be loaded right now.")}</p>
+        : counts === null || (!ready.length && waiting) ? <div className="thinking"><div className="spin" /><span>{pick(lang, "ہر فصل کی بہترین اقسام تلاش ہو رہی ہیں…", "Finding the best varieties for each crop…")}</span></div>
+        : !ready.length ? <p className="status err">{pick(lang, "ابھی بیج کی معلومات نہیں مل سکیں۔", "Seed information could not be loaded right now.")} <button type="button" className="btn ghost" onClick={() => setTryN((n) => n + 1)}>{pick(lang, "دوبارہ کوشش", "Try again")}</button></p>
         : (
           <section>
             <h3 className="sec-title">{pick(lang, "ہر فصل کی 3 بہترین اقسام", "Top 3 varieties of each crop")}</h3>
